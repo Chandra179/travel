@@ -1,0 +1,5 @@
+{
+  "status": "error",
+  "error_code": "E500",
+  "message": "Internal Provider Error: AirAsia service is currently unavailable."
+}

@@ -8,10 +8,10 @@ build:
 	docker compose up --build -d
 
 run:
-	go run cmd/myapp/main.go
+	go run cmd/travel/main.go
 
 swag:
-	swag init -g /cmd/myapp/main.go -o api
+	swag init -g /cmd/travel/main.go -o api
 
 IMAGE ?= my-app
 VERSION ?= latest
@@ -22,7 +22,3 @@ docker-push:
 	docker build -t $(IMAGE):$(VERSION) .
 	docker tag $(IMAGE):$(VERSION) $(DOCKER_USER)/$(IMAGE):$(VERSION)
 	docker push $(DOCKER_USER)/$(IMAGE):$(VERSION)
-
-.PHONY: add-secrets
-add-secrets:
-	./add-secrets.sh

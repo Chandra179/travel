@@ -1,0 +1,15 @@
+{
+  "name": "AirAsia-Search",
+  "request": {
+    "method": "POST",
+    "urlPath": "/v1/flights/search"
+  },
+  "response": {
+    "status": "{{randomValue type='int' options='200,400,500'}}",
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "body": "{{#ifeq status '200'}}{{file 'airasia_search_response.json'}}{{/ifeq}}{{#ifeq status '400'}}{{file 'error_400.json'}}{{/ifeq}}{{#ifeq status '500'}}{{file 'error_500.json'}}{{/ifeq}}",
+    "fixedDelayMilliseconds": 300
+  }
+}

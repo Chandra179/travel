@@ -1,6 +1,6 @@
 package logger
 
-type Logger interface {
+type Client interface {
 	Debug(msg string, fields ...Field)
 	Info(msg string, fields ...Field)
 	Warn(msg string, fields ...Field)

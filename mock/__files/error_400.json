@@ -1,0 +1,5 @@
+{
+  "status": "error",
+  "error_code": "E400",
+  "message": "Bad Request: The required 'date' parameter was missing."
+}
