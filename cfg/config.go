@@ -17,10 +17,25 @@ type AirAsiaClientConfig struct {
 	BaseURL string
 }
 
+type BatikAirClientConfig struct {
+	BaseURL string
+}
+
+type GarudaIndonesiaClientConfig struct {
+	BaseURL string
+}
+
+type LionAirClientConfig struct {
+	BaseURL string
+}
+
 type Config struct {
-	AppEnv              string
-	RedisConfig         RedisConfig
-	AirAsiaClientConfig AirAsiaClientConfig
+	AppEnv               string
+	RedisConfig          RedisConfig
+	AirAsiaClientConfig  AirAsiaClientConfig
+	BatikAirClientConfig BatikAirClientConfig
+	GarudaClientConfig   GarudaIndonesiaClientConfig
+	LionAirClientConfig  LionAirClientConfig
 }
 
 func Load() (*Config, error) {
@@ -37,6 +52,9 @@ func Load() (*Config, error) {
 	redisPassword := mustEnv("REDIS_PASSWORD", &errs)
 
 	airAsiaClientBaseUrl := mustEnv("AIRASIA_CLIENT_BASE_URL", &errs)
+	batikAirClientBaseUrl := mustEnv("BATIKAIR_CLIENT_BASE_URL", &errs)
+	garudaClientBaseUrl := mustEnv("GARUDA_CLIENT_BASE_URL", &errs)
+	lionAirClientBaseUrl := mustEnv("LIONAIR_CLIENT_BASE_URL", &errs)
 
 	if len(errs) > 0 {
 		return nil, errors.Join(errs...)
@@ -52,10 +70,18 @@ func Load() (*Config, error) {
 		AirAsiaClientConfig: AirAsiaClientConfig{
 			BaseURL: airAsiaClientBaseUrl,
 		},
+		BatikAirClientConfig: BatikAirClientConfig{
+			BaseURL: batikAirClientBaseUrl,
+		},
+		GarudaClientConfig: GarudaIndonesiaClientConfig{
+			BaseURL: garudaClientBaseUrl,
+		},
+		LionAirClientConfig: LionAirClientConfig{
+			BaseURL: lionAirClientBaseUrl,
+		},
 	}, nil
 }
 
-// mustEnv appends error into slice instead of returning.
 func mustEnv(key string, errs *[]error) string {
 	value, exists := os.LookupEnv(key)
 	if !exists || value == "" {

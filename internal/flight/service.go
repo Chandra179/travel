@@ -40,7 +40,7 @@ type SearchRequest struct {
 	CabinClass     string        `json:"cabin_class"`
 	Origin         string        `json:"origin"`
 	Destination    string        `json:"destination"`
-	FlightDate     string        `json:"flight_date"`
+	DepartureDate  string        `json:"departure_date"`
 	ReturnDate     string        `json:"return_date"`
 	SortBy         string        `json:"sort_by"`
 	Currency       string        `json:"currency"`

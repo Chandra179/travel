@@ -1,0 +1,84 @@
+package flightclient
+
+import (
+	"bytes"
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"travel/pkg/logger"
+)
+
+type BatikAirClient struct {
+	httpClient *http.Client
+	baseURL    string
+	logger     logger.Client
+}
+
+func NewBatikAirClient(httpClient *http.Client, baseURL string, logger logger.Client) *BatikAirClient {
+	return &BatikAirClient{
+		httpClient: httpClient,
+		baseURL:    baseURL,
+		logger:     logger,
+	}
+}
+
+type batikAirFlightResponse struct {
+	Code    int              `json:"code"`
+	Message string           `json:"message"`
+	Results []batikAirFlight `json:"results"`
+}
+
+type batikAirFlight struct {
+	FlightNumber      string   `json:"flightNumber"`
+	AirlineName       string   `json:"airlineName"`
+	AirlineIATA       string   `json:"airlineIATA"`
+	Origin            string   `json:"origin"`
+	Destination       string   `json:"destination"`
+	DepartureDateTime string   `json:"departureDateTime"` // String, needs parsing
+	ArrivalDateTime   string   `json:"arrivalDateTime"`   // String, needs parsing
+	TravelTime        string   `json:"travelTime"`        // e.g. "1h 45m"
+	NumberOfStops     uint32   `json:"numberOfStops"`
+	Fare              fare     `json:"fare"`
+	SeatsAvailable    uint32   `json:"seatsAvailable"`
+	AircraftModel     string   `json:"aircraftModel"`
+	BaggageInfo       string   `json:"baggageInfo"`
+	OnboardServices   []string `json:"onboardServices"`
+}
+
+type fare struct {
+	BasePrice    uint64 `json:"basePrice"`
+	Taxes        uint64 `json:"taxes"`
+	TotalPrice   uint64 `json:"totalPrice"`
+	CurrencyCode string `json:"currencyCode"`
+	Class        string `json:"class"`
+}
+
+// Update the Client method
+func (a *BatikAirClient) GetFlights() (*batikAirFlightResponse, error) {
+	url := fmt.Sprintf("%s/batikair/v1/flights/search", a.baseURL)
+
+	body := bytes.NewBuffer([]byte(`{}`))
+
+	req, err := http.NewRequest(http.MethodPost, url, body)
+	if err != nil {
+		a.logger.Error("failed to build batik request", logger.Field{Key: "error", Value: err})
+		return nil, fmt.Errorf("failed to build request: %w", err)
+	}
+
+	resp, err := a.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("external api call failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("external api returned non-200 status: %d", resp.StatusCode)
+	}
+
+	var apiResp batikAirFlightResponse
+	if err := json.NewDecoder(resp.Body).Decode(&apiResp); err != nil {
+		return nil, fmt.Errorf("failed to decode batik response: %w", err)
+	}
+
+	return &apiResp, nil
+}

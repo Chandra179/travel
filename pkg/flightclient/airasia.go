@@ -23,7 +23,7 @@ func NewAirAsiaClient(httpClient *http.Client, baseURL string, logger logger.Cli
 	}
 }
 
-type airAsiaResponse struct {
+type airAsiaFlightResponse struct {
 	Status  string          `json:"status"`
 	Flights []airAsiaFlight `json:"flights"`
 }
@@ -46,8 +46,8 @@ type airAsiaFlight struct {
 	} `json:"stops"`
 }
 
-func (a *AirAsiaClient) GetFlights() (*airAsiaResponse, error) {
-	url := fmt.Sprintf("%s/v1/flights/search", a.baseURL)
+func (a *AirAsiaClient) GetFlights() (*airAsiaFlightResponse, error) {
+	url := fmt.Sprintf("%s/airasia/v1/flights/search", a.baseURL)
 
 	a.logger.Debug("starting airasia flight search",
 		logger.Field{Key: "url", Value: url},
@@ -83,7 +83,7 @@ func (a *AirAsiaClient) GetFlights() (*airAsiaResponse, error) {
 		return nil, fmt.Errorf("external api returned non-200 status: %d", resp.StatusCode)
 	}
 
-	var apiResp airAsiaResponse
+	var apiResp airAsiaFlightResponse
 	if err := json.NewDecoder(resp.Body).Decode(&apiResp); err != nil {
 		a.logger.Error("failed to decode airasia json response", logger.Field{Key: "error", Value: err})
 		return nil, fmt.Errorf("failed to decode json response: %w", err)

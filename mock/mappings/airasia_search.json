@@ -1,7 +1,7 @@
 {
   "request": {
     "method": "POST",
-    "urlPath": "/v1/flights/search"
+    "urlPath": "/airasia/v1/flights/search"
   },
   "response": {
     "status": 200,
@@ -9,7 +9,6 @@
       "Content-Type": "application/json"
     },
     "jsonBody": {
-      "status": "success",
       "flights": [
         {
           "flight_code": "AK123",
@@ -42,7 +41,6 @@
           "stops": []
         }
       ]
-    },
-    "fixedDelayMilliseconds": 300
+    }
   }
 }

@@ -18,7 +18,6 @@ func NewFlightHandler(s *Service) *FlightHandler {
 }
 
 func (h *FlightHandler) RegisterRoutes(router *gin.Engine) {
-	// You can hardcode the path here, or pass it as a config.
 	router.POST("/v1/flights/search", h.SearchFlightsHandler)
 }
 

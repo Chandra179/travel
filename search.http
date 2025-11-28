@@ -7,27 +7,4 @@ POST http://localhost:8080/v1/flights/search
 Content-Type: application/json
 
 {
-    "Origin": "CGK",
-    "Destination": "SIN",
-    "FlightDate": "2026-01-15",
-    "ReturnDate": "",
-    "Passengers": 2,
-    "CabinClass": "Economy",
-    "SortBy": "price",
-    "Currency": "IDR",
-    "FlightDuration": 0,
-    "StopCount": 0,
-    "Airlines": "",
-    "DepartureTime": {
-        "From": "00:00",
-        "To": "23:59"
-    },
-    "ArrivalTime": {
-        "From": "00:00",
-        "To": "23:59"
-    },
-    "PriceRange": {
-        "Low": 0,
-        "High": 99999999
-    }
 }

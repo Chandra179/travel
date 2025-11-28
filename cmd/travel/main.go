@@ -42,11 +42,14 @@ func main() {
 	// ============
 	// External Service
 	// ============
-	httpClient := &http.Client{ // httpClient can be reused or seperate client per external service=
-		Timeout: 15 * time.Second,
+	httpClient := &http.Client{ // httpClient can be reused or seperate client per external service
+		Timeout: 5 * time.Second,
 	}
 	airAsiaClient := flightclient.NewAirAsiaClient(httpClient, config.AirAsiaClientConfig.BaseURL, zlogger)
-	flightClient := flightclient.NewFlightClient(airAsiaClient, zlogger)
+	batikAirClient := flightclient.NewBatikAirClient(httpClient, config.AirAsiaClientConfig.BaseURL, zlogger)
+	garudaClient := flightclient.NewGarudaClient(httpClient, config.GarudaClientConfig.BaseURL, zlogger)
+	lionAirClient := flightclient.NewLionAirClient(httpClient, config.LionAirClientConfig.BaseURL, zlogger)
+	flightClient := flightclient.NewFlightClient(airAsiaClient, batikAirClient, garudaClient, lionAirClient, zlogger)
 
 	// ============
 	// Inernal Service
