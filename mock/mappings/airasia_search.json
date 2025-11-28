@@ -1,15 +1,48 @@
 {
-  "name": "AirAsia-Search",
   "request": {
     "method": "POST",
     "urlPath": "/v1/flights/search"
   },
   "response": {
-    "status": "{{randomValue type='int' options='200,400,500'}}",
+    "status": 200,
     "headers": {
       "Content-Type": "application/json"
     },
-    "body": "{{#ifeq status '200'}}{{file 'airasia_search_response.json'}}{{/ifeq}}{{#ifeq status '400'}}{{file 'error_400.json'}}{{/ifeq}}{{#ifeq status '500'}}{{file 'error_500.json'}}{{/ifeq}}",
+    "jsonBody": {
+      "status": "success",
+      "flights": [
+        {
+          "flight_code": "AK123",
+          "airline": "AirAsia",
+          "from_airport": "CGK",
+          "to_airport": "SIN",
+          "depart_time": "2026-01-15T08:00:00+07:00",
+          "arrive_time": "2026-01-15T10:30:00+08:00",
+          "duration_hours": 1.5,
+          "direct_flight": true,
+          "price_idr": 850000,
+          "seats": 45,
+          "cabin_class": "Economy",
+          "baggage_note": "20kg checked baggage",
+          "stops": []
+        },
+        {
+          "flight_code": "AK456",
+          "airline": "AirAsia",
+          "from_airport": "CGK",
+          "to_airport": "SIN",
+          "depart_time": "2026-01-15T14:00:00+07:00",
+          "arrive_time": "2026-01-15T16:30:00+08:00",
+          "duration_hours": 1.5,
+          "direct_flight": true,
+          "price_idr": 920000,
+          "seats": 32,
+          "cabin_class": "Economy",
+          "baggage_note": "20kg checked baggage",
+          "stops": []
+        }
+      ]
+    },
     "fixedDelayMilliseconds": 300
   }
 }

@@ -1,6 +1,7 @@
 package flightclient
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -53,13 +54,12 @@ func (a *AirAsiaClient) GetFlights() (*airAsiaResponse, error) {
 		logger.Field{Key: "method", Value: http.MethodPost},
 	)
 
-	req, err := http.NewRequest(http.MethodPost, url, nil)
+	body := bytes.NewBuffer([]byte(`{"a":"b"}`))
+	req, err := http.NewRequest(http.MethodPost, url, body)
 	if err != nil {
 		a.logger.Error("failed to build airasia request", logger.Field{Key: "error", Value: err})
 		return nil, fmt.Errorf("failed to build request: %w", err)
 	}
-
-	startTime := time.Now()
 
 	resp, err := a.httpClient.Do(req)
 	if err != nil {
@@ -71,10 +71,8 @@ func (a *AirAsiaClient) GetFlights() (*airAsiaResponse, error) {
 	}
 	defer resp.Body.Close()
 
-	latency := time.Since(startTime)
 	a.logger.Debug("received response from airasia",
 		logger.Field{Key: "status_code", Value: resp.StatusCode},
-		logger.Field{Key: "latency_ms", Value: latency.Milliseconds()},
 	)
 
 	if resp.StatusCode != http.StatusOK {

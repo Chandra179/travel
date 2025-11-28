@@ -45,8 +45,7 @@ func main() {
 	httpClient := &http.Client{ // httpClient can be reused or seperate client per external service=
 		Timeout: 15 * time.Second,
 	}
-	airAsiaClient := flightclient.NewAirAsiaClient(httpClient,
-		config.AirAsiaClientConfig.BaseURL, zlogger)
+	airAsiaClient := flightclient.NewAirAsiaClient(httpClient, config.AirAsiaClientConfig.BaseURL, zlogger)
 	flightClient := flightclient.NewFlightClient(airAsiaClient, zlogger)
 
 	// ============
