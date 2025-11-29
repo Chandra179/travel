@@ -44,10 +44,8 @@ func (s *Service) generateCacheKey(req SearchRequest) string {
 type ErrorCode string
 
 const (
-	ErrorCodeTimeout            ErrorCode = "TIMEOUT"
-	ErrorCodeInvalidResponse    ErrorCode = "INVALID_RESPONSE"
-	ErrorCodeServiceUnavailable ErrorCode = "SERVICE_UNAVAILABLE"
-	ErrorCodeInternalFailure    ErrorCode = "INTERNAL_FAILURE"
+	ErrorCodeTimeout         ErrorCode = "TIMEOUT"
+	ErrorCodeInternalFailure ErrorCode = "INTERNAL_FAILURE"
 )
 
 type PriceRange struct {
@@ -120,7 +118,7 @@ type Flight struct {
 	Aircraft       string       `json:"aircraft"`
 	Amenities      []string     `json:"amenities"`
 	Baggage        Baggage      `json:"baggage"`
-	BestValueScore *float64     `json:"best_value_score,omitempty"` // Only included when sorting by best_value
+	BestValueScore *float64     `json:"best_value_score,omitempty"`
 }
 
 type Airline struct {
