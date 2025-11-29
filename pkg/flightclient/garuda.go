@@ -75,27 +75,27 @@ func (a *GarudaClient) SearchFlights(ctx context.Context, req flight.SearchReque
 
 	reqBody, err := json.Marshal(req)
 	if err != nil {
-		return nil, fmt.Errorf("failed to marshal request: %w", err)
+		return nil, fmt.Errorf("garuda: failed to marshal request: %w", err)
 	}
 
 	r, err := http.NewRequest(http.MethodGet, url, bytes.NewBuffer(reqBody))
 	if err != nil {
-		return nil, fmt.Errorf("failed to build request: %w", err)
+		return nil, fmt.Errorf("garuda: failed to build request: %w", err)
 	}
 
 	resp, err := a.httpClient.Do(r)
 	if err != nil {
-		return nil, fmt.Errorf("external api call failed: %w", err)
+		return nil, fmt.Errorf("garuda: external api call failed: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("external api returned non-200 status: %d", resp.StatusCode)
+		return nil, fmt.Errorf("garuda: external api returned non-200 status: %d", resp.StatusCode)
 	}
 
 	var apiResp garudaFlightResponse
 	if err := json.NewDecoder(resp.Body).Decode(&apiResp); err != nil {
-		return nil, fmt.Errorf("failed to decode garuda response: %w", err)
+		return nil, fmt.Errorf("garuda: failed to decode garuda response: %w", err)
 	}
 
 	return &apiResp, nil

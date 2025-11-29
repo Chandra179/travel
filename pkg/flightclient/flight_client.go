@@ -37,7 +37,7 @@ type providerResult struct {
 }
 
 func (f *FlightManager) SearchFlights(ctx context.Context, req flight.SearchRequest) (*flight.FlightSearchResponse, error) {
-	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
 
 	resultChan := make(chan providerResult, 6)

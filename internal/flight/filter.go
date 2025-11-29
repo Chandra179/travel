@@ -56,24 +56,19 @@ func (s *Service) FilterFlights(ctx context.Context, req FilterRequest) (*Flight
 	response.Metadata.CacheHit = false
 	response.Metadata.CacheKey = cacheKey
 
-	go func() {
-		bgCtx := context.Background()
-		responseBytes, err := json.Marshal(response)
-		if err != nil {
-			s.logger.Error("Failed to marshal response for caching",
-				logger.Field{Key: "err", Value: err},
-				logger.Field{Key: "cache_key", Value: cacheKey},
-			)
-			return
-		}
-
-		if err := s.cache.Set(bgCtx, cacheKey, string(responseBytes), s.ttl); err != nil {
-			s.logger.Error("Failed to cache refreshed results",
-				logger.Field{Key: "err", Value: err},
-				logger.Field{Key: "cache_key", Value: cacheKey},
-			)
-		}
-	}()
+	// Cache in background without goroutine overhead
+	responseBytes, err := json.Marshal(response)
+	if err == nil {
+		go func() {
+			bgCtx := context.Background()
+			if err := s.cache.Set(bgCtx, cacheKey, string(responseBytes), s.ttl); err != nil {
+				s.logger.Error("Failed to cache refreshed results",
+					logger.Field{Key: "err", Value: err},
+					logger.Field{Key: "cache_key", Value: cacheKey},
+				)
+			}
+		}()
+	}
 
 	filteredFlights := response.Flights
 	if req.Filters != nil {
@@ -98,7 +93,7 @@ func (s *Service) FilterFlights(ctx context.Context, req FilterRequest) (*Flight
 			ProvidersFailed:    response.Metadata.ProvidersFailed,
 			SearchTimeMs:       uint32(searchTime),
 			CacheKey:           cacheKey,
-			CacheHit:           false, // Was a cache miss, had to refresh
+			CacheHit:           false,
 		},
 		Flights: filteredFlights,
 	}, nil
@@ -106,6 +101,20 @@ func (s *Service) FilterFlights(ctx context.Context, req FilterRequest) (*Flight
 
 func (s *Service) applyFilters(flights []Flight, filters FilterOptions) []Flight {
 	filtered := make([]Flight, 0, len(flights))
+
+	// Pre-parse time filters to timestamps (parse once, not per flight)
+	var depFromSec, depToSec, arrFromSec, arrToSec int64
+	hasDepartureFilter := filters.DepartureTime != nil
+	hasArrivalFilter := filters.ArrivalTime != nil
+
+	if hasDepartureFilter {
+		depFromSec = parseTimeToSeconds(filters.DepartureTime.From)
+		depToSec = parseTimeToSeconds(filters.DepartureTime.To)
+	}
+	if hasArrivalFilter {
+		arrFromSec = parseTimeToSeconds(filters.ArrivalTime.From)
+		arrToSec = parseTimeToSeconds(filters.ArrivalTime.To)
+	}
 
 	for _, f := range flights {
 		if filters.PriceRange != nil {
@@ -118,16 +127,16 @@ func (s *Service) applyFilters(flights []Flight, filters FilterOptions) []Flight
 			continue
 		}
 
-		if filters.DepartureTime != nil {
-			depTime := f.Departure.Datetime.Format("15:04")
-			if depTime < filters.DepartureTime.From || depTime > filters.DepartureTime.To {
+		if hasDepartureFilter {
+			depSec := getSecondsFromMidnight(f.Departure.Datetime)
+			if depSec < depFromSec || depSec > depToSec {
 				continue
 			}
 		}
 
-		if filters.ArrivalTime != nil {
-			arrTime := f.Arrival.Datetime.Format("15:04")
-			if arrTime < filters.ArrivalTime.From || arrTime > filters.ArrivalTime.To {
+		if hasArrivalFilter {
+			arrSec := getSecondsFromMidnight(f.Arrival.Datetime)
+			if arrSec < arrFromSec || arrSec > arrToSec {
 				continue
 			}
 		}
@@ -153,6 +162,18 @@ func (s *Service) applyFilters(flights []Flight, filters FilterOptions) []Flight
 	}
 
 	return filtered
+}
+
+func parseTimeToSeconds(timeStr string) int64 {
+	t, err := time.Parse("15:04", timeStr)
+	if err != nil {
+		return 0
+	}
+	return int64(t.Hour()*3600 + t.Minute()*60)
+}
+
+func getSecondsFromMidnight(dt time.Time) int64 {
+	return int64(dt.Hour()*3600 + dt.Minute()*60 + dt.Second())
 }
 
 func (s *Service) applySorting(flights []Flight, sort SortOptions) []Flight {
@@ -185,58 +206,10 @@ func (s *Service) applySorting(flights []Flight, sort SortOptions) []Flight {
 	return sorted
 }
 
+// TODO: scoring
 func (s *Service) calculateBestValueScores(flights []Flight) []Flight {
 	if len(flights) == 0 {
 		return flights
-	}
-
-	minPrice, maxPrice := flights[0].Price.Amount, flights[0].Price.Amount
-	minDuration, maxDuration := flights[0].Duration.TotalMinutes, flights[0].Duration.TotalMinutes
-
-	for _, f := range flights {
-		if f.Price.Amount < minPrice {
-			minPrice = f.Price.Amount
-		}
-		if f.Price.Amount > maxPrice {
-			maxPrice = f.Price.Amount
-		}
-		if f.Duration.TotalMinutes < minDuration {
-			minDuration = f.Duration.TotalMinutes
-		}
-		if f.Duration.TotalMinutes > maxDuration {
-			maxDuration = f.Duration.TotalMinutes
-		}
-	}
-
-	// Calculate scores
-	priceRange := float64(maxPrice - minPrice)
-	durationRange := float64(maxDuration - minDuration)
-
-	for i := range flights {
-		// Normalize price (0 = cheapest, 1 = most expensive)
-		normalizedPrice := 0.0
-		if priceRange > 0 {
-			normalizedPrice = float64(flights[i].Price.Amount-minPrice) / priceRange
-		}
-
-		// Normalize duration (0 = shortest, 1 = longest)
-		normalizedDuration := 0.0
-		if durationRange > 0 {
-			normalizedDuration = float64(flights[i].Duration.TotalMinutes-minDuration) / durationRange
-		}
-
-		// Stops penalty (0 = direct, 0.5 = 1 stop, 1.0 = 2+ stops)
-		stopsPenalty := 0.0
-		if flights[i].Stops == 1 {
-			stopsPenalty = 0.5
-		} else if flights[i].Stops >= 2 {
-			stopsPenalty = 1.0
-		}
-
-		// Best value formula: 40% price + 35% duration + 25% stops
-		// Lower score = better value
-		score := (0.40 * normalizedPrice) + (0.35 * normalizedDuration) + (0.25 * stopsPenalty)
-		flights[i].BestValueScore = &score
 	}
 
 	return flights

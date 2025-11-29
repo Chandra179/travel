@@ -31,11 +31,10 @@ func NewService(flightClient FlightClient, cache cache.Cache, ttlMinutes int, lo
 
 // generateCacheKey creates a deterministic key from search parameters
 func (s *Service) generateCacheKey(req SearchRequest) string {
-	key := fmt.Sprintf("flight:%s:%s:%s:%s",
+	key := fmt.Sprintf("flight:%s:%s:%s",
 		req.Origin,
 		req.Destination,
 		req.DepartureDate,
-		req.ReturnDate,
 	)
 
 	hash := sha256.Sum256([]byte(key))
