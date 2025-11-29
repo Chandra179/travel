@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 	"travel/internal/flight"
 	"travel/pkg/logger"
@@ -32,20 +33,20 @@ type batikAirFlightResponse struct {
 }
 
 type batikAirFlight struct {
-	FlightNumber      string    `json:"flightNumber"`
-	AirlineName       string    `json:"airlineName"`
-	AirlineIATA       string    `json:"airlineIATA"`
-	Origin            string    `json:"origin"`
-	Destination       string    `json:"destination"`
-	DepartureDateTime time.Time `json:"departureDateTime"`
-	ArrivalDateTime   time.Time `json:"arrivalDateTime"`
-	TravelTime        string    `json:"travelTime"`
-	NumberOfStops     uint32    `json:"numberOfStops"`
-	Fare              fare      `json:"fare"`
-	SeatsAvailable    uint32    `json:"seatsAvailable"`
-	AircraftModel     string    `json:"aircraftModel"`
-	BaggageInfo       string    `json:"baggageInfo"`
-	OnboardServices   []string  `json:"onboardServices"`
+	FlightNumber      string       `json:"flightNumber"`
+	AirlineName       string       `json:"airlineName"`
+	AirlineIATA       string       `json:"airlineIATA"`
+	Origin            string       `json:"origin"`
+	Destination       string       `json:"destination"`
+	DepartureDateTime FlexibleTime `json:"departureDateTime"`
+	ArrivalDateTime   FlexibleTime `json:"arrivalDateTime"`
+	TravelTime        string       `json:"travelTime"`
+	NumberOfStops     uint32       `json:"numberOfStops"`
+	Fare              fare         `json:"fare"`
+	SeatsAvailable    uint32       `json:"seatsAvailable"`
+	AircraftModel     string       `json:"aircraftModel"`
+	BaggageInfo       string       `json:"baggageInfo"`
+	OnboardServices   []string     `json:"onboardServices"`
 }
 
 type fare struct {
@@ -85,4 +86,63 @@ func (a *BatikAirClient) SearchFlights(ctx context.Context, req flight.SearchReq
 	}
 
 	return &apiResp, nil
+}
+
+func (f *FlightManager) mapBatikFlights(resp *batikAirFlightResponse) []flight.Flight {
+	mapped := make([]flight.Flight, 0, len(resp.Results))
+
+	for _, btFlight := range resp.Results {
+		totalMinutes, formattedDuration := f.parseBatikDuration(btFlight.TravelTime)
+
+		domainFlight := flight.Flight{
+			ID:       btFlight.FlightNumber,
+			Provider: btFlight.AirlineName,
+			Airline: flight.Airline{
+				Name: btFlight.AirlineName,
+				Code: btFlight.AirlineIATA,
+			},
+			FlightNumber: btFlight.FlightNumber,
+			Departure: flight.LocationTime{
+				Airport:   btFlight.Origin,
+				Datetime:  btFlight.DepartureDateTime.Time,
+				Timestamp: btFlight.DepartureDateTime.Unix(),
+			},
+			Arrival: flight.LocationTime{
+				Airport:   btFlight.Destination,
+				Datetime:  btFlight.ArrivalDateTime.Time,
+				Timestamp: btFlight.ArrivalDateTime.Unix(),
+			},
+			Duration: flight.Duration{
+				TotalMinutes: totalMinutes,
+				Formatted:    formattedDuration,
+			},
+			Stops: btFlight.NumberOfStops,
+			Price: flight.Price{
+				Amount:   btFlight.Fare.TotalPrice,
+				Currency: btFlight.Fare.CurrencyCode,
+			},
+			AvailableSeats: btFlight.SeatsAvailable,
+			CabinClass:     btFlight.Fare.Class,
+			Aircraft:       btFlight.AircraftModel,
+			Amenities:      btFlight.OnboardServices,
+			Baggage: flight.Baggage{
+				Checked: btFlight.BaggageInfo,
+			},
+		}
+		mapped = append(mapped, domainFlight)
+	}
+	return mapped
+}
+
+func (f *FlightManager) parseBatikDuration(input string) (uint32, string) {
+	cleanInput := strings.ReplaceAll(input, " ", "")
+	d, err := time.ParseDuration(cleanInput)
+	if err != nil {
+		return 0, input
+	}
+
+	minutes := uint32(d.Minutes())
+	h := minutes / 60
+	m := minutes % 60
+	return minutes, fmt.Sprintf("%dh %dm", h, m)
 }

@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"math"
 	"strings"
 	"sync"
 	"time"
@@ -95,7 +94,13 @@ func (f *FlightManager) SearchFlights(ctx context.Context, req flight.SearchRequ
 			resultChan <- providerResult{provider: "Lion Air", err: err, errorCode: errCode}
 			return
 		}
-		flights := f.mapLionAirFlights(resp)
+		flights, err := f.mapLionAirFlights(resp)
+		if err != nil {
+			errCode := categorizeError(err)
+			f.logger.Error("failed to map lion air flights", logger.Field{Key: "err", Value: err})
+			resultChan <- providerResult{provider: "Lion Air", err: err, errorCode: errCode}
+			return
+		}
 		resultChan <- providerResult{provider: "Lion Air", flights: flights}
 	}()
 
@@ -136,249 +141,6 @@ func (f *FlightManager) SearchFlights(ctx context.Context, req flight.SearchRequ
 	}, nil
 }
 
-func (f *FlightManager) mapLionAirFlights(resp *LionAirFlightResponse) []flight.Flight {
-	mapped := make([]flight.Flight, 0, len(resp.Data.AvailableFlights))
-
-	for _, lFlight := range resp.Data.AvailableFlights {
-		totalMinutes := lFlight.FlightTime
-		hours := totalMinutes / 60
-		minutes := totalMinutes % 60
-		formattedDuration := fmt.Sprintf("%dh %dm", hours, minutes)
-
-		stopCount := lFlight.StopCount
-		if !lFlight.IsDirect && stopCount == 0 && len(lFlight.Layovers) > 0 {
-			stopCount = uint32(len(lFlight.Layovers))
-		}
-
-		amenities := make([]string, 0)
-		if lFlight.Services.WifiAvailable {
-			amenities = append(amenities, "Wi-Fi")
-		}
-		if lFlight.Services.MealsIncluded {
-			amenities = append(amenities, "Meal")
-		}
-
-		domainFlight := flight.Flight{
-			ID:       lFlight.ID,
-			Provider: lFlight.Carrier.Name,
-			Airline: flight.Airline{
-				Name: lFlight.Carrier.Name,
-				Code: lFlight.Carrier.IATA,
-			},
-			FlightNumber: lFlight.ID,
-			Departure: flight.LocationTime{
-				Airport:   lFlight.Route.From.Code,
-				City:      lFlight.Route.From.City,
-				Datetime:  lFlight.Schedule.Departure,
-				Timestamp: lFlight.Schedule.Departure.Unix(),
-			},
-			Arrival: flight.LocationTime{
-				Airport:   lFlight.Route.To.Code,
-				City:      lFlight.Route.To.City,
-				Datetime:  lFlight.Schedule.Arrival,
-				Timestamp: lFlight.Schedule.Arrival.Unix(),
-			},
-			Duration: flight.Duration{
-				TotalMinutes: totalMinutes,
-				Formatted:    formattedDuration,
-			},
-			Stops: stopCount,
-			Price: flight.Price{
-				Amount:   lFlight.Pricing.Total,
-				Currency: lFlight.Pricing.Currency,
-			},
-			AvailableSeats: lFlight.SeatsLeft,
-			CabinClass:     lFlight.Pricing.FareType,
-			Aircraft:       lFlight.PlaneType,
-			Amenities:      amenities,
-			Baggage: flight.Baggage{
-				CarryOn: lFlight.Services.BaggageAllowance.Cabin,
-				Checked: lFlight.Services.BaggageAllowance.Hold,
-			},
-		}
-		mapped = append(mapped, domainFlight)
-	}
-	return mapped
-}
-
-func (f *FlightManager) mapGarudaFlights(resp *garudaFlightResponse) []flight.Flight {
-	mapped := make([]flight.Flight, 0, len(resp.Flights))
-
-	for _, gFlight := range resp.Flights {
-		hours := gFlight.DurationMinutes / 60
-		minutes := gFlight.DurationMinutes % 60
-		formattedDuration := fmt.Sprintf("%dh %dm", hours, minutes)
-
-		finalArrival := gFlight.Arrival
-		if len(gFlight.Segments) > 0 {
-			lastSegment := gFlight.Segments[len(gFlight.Segments)-1]
-			finalArrival = lastSegment.Arrival
-		}
-
-		baggageCabin := fmt.Sprintf("Cabin: %d", gFlight.Baggage.CarryOn)
-		baggageChecked := fmt.Sprintf("Checked: %d", gFlight.Baggage.Checked)
-
-		domainFlight := flight.Flight{
-			ID:       gFlight.FlightID,
-			Provider: gFlight.Airline,
-			Airline: flight.Airline{
-				Name: gFlight.Airline,
-				Code: gFlight.AirlineCode,
-			},
-			FlightNumber: gFlight.FlightID,
-			Departure: flight.LocationTime{
-				Airport:   gFlight.Departure.Airport,
-				Datetime:  gFlight.Departure.Time,
-				City:      gFlight.Departure.City,
-				Timestamp: gFlight.Departure.Time.Unix(),
-			},
-			Arrival: flight.LocationTime{
-				Airport:   finalArrival.Airport,
-				Datetime:  gFlight.Arrival.Time,
-				City:      gFlight.Arrival.City,
-				Timestamp: gFlight.Arrival.Time.Unix(),
-			},
-			Duration: flight.Duration{
-				TotalMinutes: gFlight.DurationMinutes,
-				Formatted:    formattedDuration,
-			},
-			Stops: gFlight.Stops,
-			Price: flight.Price{
-				Amount:   gFlight.Price.Amount,
-				Currency: gFlight.Price.Currency,
-			},
-			AvailableSeats: gFlight.AvailableSeats,
-			CabinClass:     gFlight.FareClass,
-			Aircraft:       gFlight.Aircraft,
-			Amenities:      gFlight.Amenities,
-			Baggage: flight.Baggage{
-				CarryOn: baggageCabin,
-				Checked: baggageChecked,
-			},
-		}
-		mapped = append(mapped, domainFlight)
-	}
-	return mapped
-}
-
-func (f *FlightManager) mapAirAsiaFlights(resp *airAsiaFlightResponse) []flight.Flight {
-	mapped := make([]flight.Flight, 0, len(resp.Flights))
-
-	for _, aaFlight := range resp.Flights {
-		totalMinutes := uint32(math.Round(aaFlight.DurationHours * 60))
-		hours := totalMinutes / 60
-		minutes := totalMinutes % 60
-		formattedDuration := fmt.Sprintf("%dh %dm", hours, minutes)
-
-		stopCount := uint32(0)
-		if !aaFlight.DirectFlight {
-			stopCount = uint32(len(aaFlight.Stops))
-			if stopCount == 0 {
-				stopCount = 1
-			}
-		}
-
-		domainFlight := flight.Flight{
-			ID:       aaFlight.FlightCode,
-			Provider: "AirAsia",
-			Airline: flight.Airline{
-				Name: aaFlight.Airline,
-				Code: aaFlight.FlightCode[0:2],
-			},
-			FlightNumber: aaFlight.FlightCode,
-			Departure: flight.LocationTime{
-				Airport:   aaFlight.FromAirport,
-				Datetime:  aaFlight.DepartTime,
-				Timestamp: aaFlight.DepartTime.Unix(),
-				// City: "",
-			},
-			Arrival: flight.LocationTime{
-				Airport:   aaFlight.ToAirport,
-				Datetime:  aaFlight.ArriveTime,
-				Timestamp: aaFlight.ArriveTime.Unix(),
-				// City: "",
-			},
-			Duration: flight.Duration{
-				TotalMinutes: totalMinutes,
-				Formatted:    formattedDuration,
-			},
-			Stops: stopCount,
-			Price: flight.Price{
-				Amount:   aaFlight.PriceIDR,
-				Currency: "IDR",
-			},
-			AvailableSeats: aaFlight.Seats,
-			CabinClass:     aaFlight.CabinClass,
-			// Amenities:      []string{},
-			Baggage: flight.Baggage{
-				Checked: aaFlight.BaggageNote,
-			},
-		}
-		mapped = append(mapped, domainFlight)
-	}
-	return mapped
-}
-
-func (f *FlightManager) mapBatikFlights(resp *batikAirFlightResponse) []flight.Flight {
-	mapped := make([]flight.Flight, 0, len(resp.Results))
-
-	for _, btFlight := range resp.Results {
-
-		totalMinutes, formattedDuration := f.parseBatikDuration(btFlight.TravelTime)
-
-		domainFlight := flight.Flight{
-			ID:       btFlight.FlightNumber,
-			Provider: btFlight.AirlineName,
-			Airline: flight.Airline{
-				Name: btFlight.AirlineName,
-				Code: btFlight.AirlineIATA,
-			},
-			FlightNumber: btFlight.FlightNumber,
-			Departure: flight.LocationTime{
-				Airport:   btFlight.Origin,
-				Datetime:  btFlight.DepartureDateTime,
-				Timestamp: btFlight.DepartureDateTime.Unix(),
-			},
-			Arrival: flight.LocationTime{
-				Airport:   btFlight.Destination,
-				Datetime:  btFlight.ArrivalDateTime,
-				Timestamp: btFlight.ArrivalDateTime.Unix(),
-			},
-			Duration: flight.Duration{
-				TotalMinutes: totalMinutes,
-				Formatted:    formattedDuration,
-			},
-			Stops: btFlight.NumberOfStops,
-			Price: flight.Price{
-				Amount:   btFlight.Fare.TotalPrice,
-				Currency: btFlight.Fare.CurrencyCode,
-			},
-			AvailableSeats: btFlight.SeatsAvailable,
-			CabinClass:     btFlight.Fare.Class,
-			Aircraft:       btFlight.AircraftModel,
-			Amenities:      btFlight.OnboardServices,
-			Baggage: flight.Baggage{
-				Checked: btFlight.BaggageInfo,
-			},
-		}
-		mapped = append(mapped, domainFlight)
-	}
-	return mapped
-}
-
-func (f *FlightManager) parseBatikDuration(input string) (uint32, string) {
-	cleanInput := strings.ReplaceAll(input, " ", "")
-	d, err := time.ParseDuration(cleanInput)
-	if err != nil {
-		return 0, input
-	}
-
-	minutes := uint32(d.Minutes())
-	h := minutes / 60
-	m := minutes % 60
-	return minutes, fmt.Sprintf("%dh %dm", h, m)
-}
-
 func categorizeError(err error) flight.ErrorCode {
 	if err == nil {
 		return ""
@@ -392,4 +154,29 @@ func categorizeError(err error) flight.ErrorCode {
 	}
 
 	return flight.ErrorCodeInternalFailure
+}
+
+// FlexibleTime handles multiple time formats from different airline providers
+type FlexibleTime struct {
+	time.Time
+}
+
+func (ft *FlexibleTime) UnmarshalJSON(b []byte) error {
+	s := strings.Trim(string(b), "\"")
+
+	// Try multiple time formats
+	formats := []string{
+		time.RFC3339,               // Standard: 2006-01-02T15:04:05Z07:00 (AirAsia, Garuda)
+		"2006-01-02T15:04:05-0700", // Batik Air: 2025-12-15T07:15:00+0700
+		"2006-01-02T15:04:05",      // Lion Air: 2025-12-15T05:30:00 (no timezone)
+	}
+
+	for _, format := range formats {
+		if t, err := time.Parse(format, s); err == nil {
+			ft.Time = t
+			return nil
+		}
+	}
+
+	return fmt.Errorf("unable to parse time: %s", s)
 }

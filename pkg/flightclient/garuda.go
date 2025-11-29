@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"time"
 	"travel/internal/flight"
 	"travel/pkg/logger"
 )
@@ -48,10 +47,10 @@ type garudaFlight struct {
 }
 
 type garudaLocation struct {
-	Airport  string    `json:"airport"`
-	City     string    `json:"city"`
-	Time     time.Time `json:"time"`
-	Terminal string    `json:"terminal"`
+	Airport  string       `json:"airport"`
+	City     string       `json:"city"`
+	Time     FlexibleTime `json:"time"`
+	Terminal string       `json:"terminal"`
 }
 
 type garudaPrice struct {
@@ -99,4 +98,64 @@ func (a *GarudaClient) SearchFlights(ctx context.Context, req flight.SearchReque
 	}
 
 	return &apiResp, nil
+}
+
+func (f *FlightManager) mapGarudaFlights(resp *garudaFlightResponse) []flight.Flight {
+	mapped := make([]flight.Flight, 0, len(resp.Flights))
+
+	for _, gFlight := range resp.Flights {
+		hours := gFlight.DurationMinutes / 60
+		minutes := gFlight.DurationMinutes % 60
+		formattedDuration := fmt.Sprintf("%dh %dm", hours, minutes)
+
+		finalArrival := gFlight.Arrival
+		if len(gFlight.Segments) > 0 {
+			lastSegment := gFlight.Segments[len(gFlight.Segments)-1]
+			finalArrival = lastSegment.Arrival
+		}
+
+		baggageCabin := fmt.Sprintf("Cabin: %d", gFlight.Baggage.CarryOn)
+		baggageChecked := fmt.Sprintf("Checked: %d", gFlight.Baggage.Checked)
+
+		domainFlight := flight.Flight{
+			ID:       gFlight.FlightID,
+			Provider: gFlight.Airline,
+			Airline: flight.Airline{
+				Name: gFlight.Airline,
+				Code: gFlight.AirlineCode,
+			},
+			FlightNumber: gFlight.FlightID,
+			Departure: flight.LocationTime{
+				Airport:   gFlight.Departure.Airport,
+				Datetime:  gFlight.Departure.Time.Time,
+				City:      gFlight.Departure.City,
+				Timestamp: gFlight.Departure.Time.Unix(),
+			},
+			Arrival: flight.LocationTime{
+				Airport:   finalArrival.Airport,
+				Datetime:  gFlight.Arrival.Time.Time,
+				City:      gFlight.Arrival.City,
+				Timestamp: gFlight.Arrival.Time.Unix(),
+			},
+			Duration: flight.Duration{
+				TotalMinutes: gFlight.DurationMinutes,
+				Formatted:    formattedDuration,
+			},
+			Stops: gFlight.Stops,
+			Price: flight.Price{
+				Amount:   gFlight.Price.Amount,
+				Currency: gFlight.Price.Currency,
+			},
+			AvailableSeats: gFlight.AvailableSeats,
+			CabinClass:     gFlight.FareClass,
+			Aircraft:       gFlight.Aircraft,
+			Amenities:      gFlight.Amenities,
+			Baggage: flight.Baggage{
+				CarryOn: baggageCabin,
+				Checked: baggageChecked,
+			},
+		}
+		mapped = append(mapped, domainFlight)
+	}
+	return mapped
 }

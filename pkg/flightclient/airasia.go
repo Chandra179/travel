@@ -5,8 +5,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math"
 	"net/http"
-	"time"
 	"travel/internal/flight"
 	"travel/pkg/logger"
 )
@@ -39,8 +39,8 @@ type airAsiaFlight struct {
 	Airline       string        `json:"airline"`
 	FromAirport   string        `json:"from_airport"`
 	ToAirport     string        `json:"to_airport"`
-	DepartTime    time.Time     `json:"depart_time"`
-	ArriveTime    time.Time     `json:"arrive_time"`
+	DepartTime    FlexibleTime  `json:"depart_time"`
+	ArriveTime    FlexibleTime  `json:"arrive_time"`
 	DurationHours float64       `json:"duration_hours"`
 	DirectFlight  bool          `json:"direct_flight"`
 	PriceIDR      uint64        `json:"price_idr"`
@@ -81,4 +81,59 @@ func (a *AirAsiaClient) SearchFlights(ctx context.Context, req flight.SearchRequ
 	}
 
 	return &apiResp, nil
+}
+
+func (f *FlightManager) mapAirAsiaFlights(resp *airAsiaFlightResponse) []flight.Flight {
+	mapped := make([]flight.Flight, 0, len(resp.Flights))
+
+	for _, aaFlight := range resp.Flights {
+		totalMinutes := uint32(math.Round(aaFlight.DurationHours * 60))
+		hours := totalMinutes / 60
+		minutes := totalMinutes % 60
+		formattedDuration := fmt.Sprintf("%dh %dm", hours, minutes)
+
+		stopCount := uint32(0)
+		if !aaFlight.DirectFlight {
+			stopCount = uint32(len(aaFlight.Stops))
+			if stopCount == 0 {
+				stopCount = 1
+			}
+		}
+
+		domainFlight := flight.Flight{
+			ID:       aaFlight.FlightCode,
+			Provider: "AirAsia",
+			Airline: flight.Airline{
+				Name: aaFlight.Airline,
+				Code: aaFlight.FlightCode[0:2],
+			},
+			FlightNumber: aaFlight.FlightCode,
+			Departure: flight.LocationTime{
+				Airport:   aaFlight.FromAirport,
+				Datetime:  aaFlight.DepartTime.Time,
+				Timestamp: aaFlight.DepartTime.Unix(),
+			},
+			Arrival: flight.LocationTime{
+				Airport:   aaFlight.ToAirport,
+				Datetime:  aaFlight.ArriveTime.Time,
+				Timestamp: aaFlight.ArriveTime.Unix(),
+			},
+			Duration: flight.Duration{
+				TotalMinutes: totalMinutes,
+				Formatted:    formattedDuration,
+			},
+			Stops: stopCount,
+			Price: flight.Price{
+				Amount:   aaFlight.PriceIDR,
+				Currency: "IDR",
+			},
+			AvailableSeats: aaFlight.Seats,
+			CabinClass:     aaFlight.CabinClass,
+			Baggage: flight.Baggage{
+				Checked: aaFlight.BaggageNote,
+			},
+		}
+		mapped = append(mapped, domainFlight)
+	}
+	return mapped
 }
