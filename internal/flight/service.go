@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 	"travel/pkg/cache"
@@ -94,6 +95,7 @@ type Flight struct {
 	Aircraft       string       `json:"aircraft"`
 	Amenities      []string     `json:"amenities"`
 	Baggage        Baggage      `json:"baggage"`
+	BestValueScore *float64     `json:"best_value_score,omitempty"` // Only included when sorting by best_value
 }
 
 type Airline struct {
@@ -132,9 +134,15 @@ type FilterOptions struct {
 	MaxDuration   *uint32        `json:"max_duration,omitempty"`
 }
 
+type SortOptions struct {
+	By    string `json:"by"`    // price, duration, departure_time, arrival_time, best_value
+	Order string `json:"order"` // asc, desc
+}
+
 type FilterRequest struct {
 	SearchRequest
-	Filters FilterOptions `json:"filters"`
+	Filters *FilterOptions `json:"filters,omitempty"`
+	Sort    *SortOptions   `json:"sort,omitempty"`
 }
 
 // generateCacheKey creates a deterministic key from search parameters
@@ -198,14 +206,21 @@ func (s *Service) SearchFlights(ctx context.Context, req SearchRequest) (*Flight
 // FilterFlights - Filter with auto-refresh on cache miss
 func (s *Service) FilterFlights(ctx context.Context, req FilterRequest) (*FlightSearchResponse, error) {
 	cacheKey := s.generateCacheKey(req.SearchRequest)
-	cached, err := s.cache.Get(ctx, cacheKey)
 
+	cached, err := s.cache.Get(ctx, cacheKey)
 	if err == nil && cached != "" {
 		s.logger.Info("Cache hit for filter", logger.Field{Key: "cache_key", Value: cacheKey})
 
 		var response FlightSearchResponse
 		if err := json.Unmarshal([]byte(cached), &response); err == nil {
-			filteredFlights := s.applyFilters(response.Flights, req.Filters)
+			filteredFlights := response.Flights
+			if req.Filters != nil {
+				filteredFlights = s.applyFilters(response.Flights, *req.Filters)
+			}
+
+			if req.Sort != nil {
+				filteredFlights = s.applySorting(filteredFlights, *req.Sort)
+			}
 
 			return &FlightSearchResponse{
 				SearchCriteria: response.SearchCriteria,
@@ -224,11 +239,13 @@ func (s *Service) FilterFlights(ctx context.Context, req FilterRequest) (*Flight
 		s.logger.Error("Failed to unmarshal cached data", logger.Field{Key: "err", Value: err})
 	}
 
+	// Cache miss - auto-refresh by searching again
 	s.logger.Info("Cache miss for filter - auto-refreshing",
 		logger.Field{Key: "cache_key", Value: cacheKey},
 		logger.Field{Key: "route", Value: fmt.Sprintf("%s->%s", req.Origin, req.Destination)},
 	)
 
+	// Fetch fresh data from providers (blocking - user waits for this)
 	startTime := time.Now()
 	response, err := s.flightClient.SearchFlights(ctx, req.SearchRequest)
 	if err != nil {
@@ -240,9 +257,8 @@ func (s *Service) FilterFlights(ctx context.Context, req FilterRequest) (*Flight
 	response.Metadata.CacheHit = false
 	response.Metadata.CacheKey = cacheKey
 
-	// Cache in background (non-blocking
 	go func() {
-		bgCtx := context.Background()
+		bgCtx := context.Background() // Use background context to avoid cancellation
 
 		responseBytes, err := json.Marshal(response)
 		if err != nil {
@@ -266,7 +282,14 @@ func (s *Service) FilterFlights(ctx context.Context, req FilterRequest) (*Flight
 		}
 	}()
 
-	filteredFlights := s.applyFilters(response.Flights, req.Filters)
+	filteredFlights := response.Flights
+	if req.Filters != nil {
+		filteredFlights = s.applyFilters(response.Flights, *req.Filters)
+	}
+
+	if req.Sort != nil {
+		filteredFlights = s.applySorting(filteredFlights, *req.Sort)
+	}
 
 	return &FlightSearchResponse{
 		SearchCriteria: SearchCriteria{
@@ -338,4 +361,148 @@ func (s *Service) applyFilters(flights []Flight, filters FilterOptions) []Flight
 	}
 
 	return filtered
+}
+
+func (s *Service) applySorting(flights []Flight, sort SortOptions) []Flight {
+	if len(flights) == 0 {
+		return flights
+	}
+
+	sorted := make([]Flight, len(flights))
+	copy(sorted, flights)
+
+	if sort.By == "best_value" {
+		sorted = s.calculateBestValueScores(sorted)
+	}
+
+	switch sort.By {
+	case "price":
+		s.sortByPrice(sorted, sort.Order)
+	case "duration":
+		s.sortByDuration(sorted, sort.Order)
+	case "departure_time":
+		s.sortByDepartureTime(sorted, sort.Order)
+	case "arrival_time":
+		s.sortByArrivalTime(sorted, sort.Order)
+	case "best_value":
+		s.sortByBestValue(sorted, sort.Order)
+	default:
+		s.logger.Warn("Invalid sort criteria", logger.Field{Key: "sort_by", Value: sort.By})
+	}
+
+	return sorted
+}
+
+func (s *Service) calculateBestValueScores(flights []Flight) []Flight {
+	if len(flights) == 0 {
+		return flights
+	}
+
+	minPrice, maxPrice := flights[0].Price.Amount, flights[0].Price.Amount
+	minDuration, maxDuration := flights[0].Duration.TotalMinutes, flights[0].Duration.TotalMinutes
+
+	for _, f := range flights {
+		if f.Price.Amount < minPrice {
+			minPrice = f.Price.Amount
+		}
+		if f.Price.Amount > maxPrice {
+			maxPrice = f.Price.Amount
+		}
+		if f.Duration.TotalMinutes < minDuration {
+			minDuration = f.Duration.TotalMinutes
+		}
+		if f.Duration.TotalMinutes > maxDuration {
+			maxDuration = f.Duration.TotalMinutes
+		}
+	}
+
+	// Calculate scores
+	priceRange := float64(maxPrice - minPrice)
+	durationRange := float64(maxDuration - minDuration)
+
+	for i := range flights {
+		// Normalize price (0 = cheapest, 1 = most expensive)
+		normalizedPrice := 0.0
+		if priceRange > 0 {
+			normalizedPrice = float64(flights[i].Price.Amount-minPrice) / priceRange
+		}
+
+		// Normalize duration (0 = shortest, 1 = longest)
+		normalizedDuration := 0.0
+		if durationRange > 0 {
+			normalizedDuration = float64(flights[i].Duration.TotalMinutes-minDuration) / durationRange
+		}
+
+		// Stops penalty (0 = direct, 0.5 = 1 stop, 1.0 = 2+ stops)
+		stopsPenalty := 0.0
+		if flights[i].Stops == 1 {
+			stopsPenalty = 0.5
+		} else if flights[i].Stops >= 2 {
+			stopsPenalty = 1.0
+		}
+
+		// Best value formula: 40% price + 35% duration + 25% stops
+		// Lower score = better value
+		score := (0.40 * normalizedPrice) + (0.35 * normalizedDuration) + (0.25 * stopsPenalty)
+		flights[i].BestValueScore = &score
+	}
+
+	return flights
+}
+
+func (s *Service) sortByPrice(flights []Flight, order string) {
+	sort.Slice(flights, func(i, j int) bool {
+		if order == "desc" {
+			return flights[i].Price.Amount > flights[j].Price.Amount
+		}
+		return flights[i].Price.Amount < flights[j].Price.Amount
+	})
+}
+
+func (s *Service) sortByDuration(flights []Flight, order string) {
+	sort.Slice(flights, func(i, j int) bool {
+		if order == "desc" {
+			return flights[i].Duration.TotalMinutes > flights[j].Duration.TotalMinutes
+		}
+		return flights[i].Duration.TotalMinutes < flights[j].Duration.TotalMinutes
+	})
+}
+
+func (s *Service) sortByDepartureTime(flights []Flight, order string) {
+	sort.Slice(flights, func(i, j int) bool {
+		if order == "desc" {
+			return flights[i].Departure.Timestamp > flights[j].Departure.Timestamp
+		}
+		return flights[i].Departure.Timestamp < flights[j].Departure.Timestamp
+	})
+}
+
+func (s *Service) sortByArrivalTime(flights []Flight, order string) {
+	sort.Slice(flights, func(i, j int) bool {
+		if order == "desc" {
+			return flights[i].Arrival.Timestamp > flights[j].Arrival.Timestamp
+		}
+		return flights[i].Arrival.Timestamp < flights[j].Arrival.Timestamp
+	})
+}
+
+func (s *Service) sortByBestValue(flights []Flight, order string) {
+	sort.Slice(flights, func(i, j int) bool {
+		// Scores should already be calculated
+		if flights[i].BestValueScore == nil || flights[j].BestValueScore == nil {
+			return false
+		}
+
+		if order == "desc" {
+			return *flights[i].BestValueScore > *flights[j].BestValueScore
+		}
+		return *flights[i].BestValueScore < *flights[j].BestValueScore
+	})
+}
+
+// InvalidateCache manually invalidates cache for a specific route
+func (s *Service) InvalidateCache(ctx context.Context, req SearchRequest) error {
+	cacheKey := s.generateCacheKey(req)
+	s.logger.Info("Invalidating cache", logger.Field{Key: "cache_key", Value: cacheKey})
+	return s.cache.Del(ctx, cacheKey)
 }

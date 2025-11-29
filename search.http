@@ -1,15 +1,21 @@
-# POST http://localhost:8080/v1/flights/search
-# Content-Type: application/json
+### ============================================
+### Flight Search
+### ============================================
+POST http://localhost:8080/v1/flights/search
+Content-Type: application/json
 
-# {
-#     "origin": "CGK",
-#     "destination": "DPS",
-#     "departure_date": "2025-12-15",
-#     "return_date": "2025-12-20",
-#     "passengers": 1,
-#     "cabin_class": "economy"
-# }
+{
+    "origin": "CGK",
+    "destination": "DPS",
+    "departure_date": "2025-12-15",
+    "return_date": "2025-12-20",
+    "passengers": 1,
+    "cabin_class": "economy"
+}
 
+### ============================================
+### Flight filter
+### ============================================
 POST http://localhost:8080/v1/flights/filter
 Content-Type: application/json
 
@@ -25,5 +31,345 @@ Content-Type: application/json
             "low": 100,
             "high": 7000000
         }
+    }
+}
+
+### ============================================
+### Filter by Direct Flights Only
+### ============================================
+POST http://localhost:8080/v1/flights/filter
+Content-Type: application/json
+
+{
+    "origin": "CGK",
+    "destination": "DPS",
+    "departure_date": "2025-12-15",
+    "return_date": "2025-12-20",
+    "passengers": 1,
+    "cabin_class": "economy",
+    "filters": {
+        "max_stops": 0
+    }
+}
+
+### ============================================
+### Filter by Morning Departure
+### ============================================
+POST http://localhost:8080/v1/flights/filter
+Content-Type: application/json
+
+{
+    "origin": "CGK",
+    "destination": "DPS",
+    "departure_date": "2025-12-15",
+    "return_date": "2025-12-20",
+    "passengers": 1,
+    "cabin_class": "economy",
+    "filters": {
+        "departure_time": {
+            "from": "04:00",
+            "to": "12:00"
+        }
+    }
+}
+
+### ============================================
+### Filter by Max Duration (Short flights)
+### ============================================
+POST http://localhost:8080/v1/flights/filter
+Content-Type: application/json
+
+{
+    "origin": "CGK",
+    "destination": "DPS",
+    "departure_date": "2025-12-15",
+    "return_date": "2025-12-20",
+    "passengers": 1,
+    "cabin_class": "economy",
+    "filters": {
+        "max_duration": 120
+    }
+}
+
+### ============================================
+### Multiple Filter Criteria
+### ============================================
+POST http://localhost:8080/v1/flights/filter
+Content-Type: application/json
+
+{
+    "origin": "CGK",
+    "destination": "DPS",
+    "departure_date": "2025-12-15",
+    "return_date": "2025-12-20",
+    "passengers": 1,
+    "cabin_class": "economy",
+    "filters": {
+        "price_range": {
+            "low": 400000,
+            "high": 650000
+        },
+        "max_stops": 0,
+        "departure_time": {
+            "from": "04:00",
+            "to": "12:00"
+        }
+    }
+}
+
+### ============================================
+### Filter by Airlines
+### ============================================
+POST http://localhost:8080/v1/flights/filter
+Content-Type: application/json
+
+{
+    "origin": "CGK",
+    "destination": "DPS",
+    "departure_date": "2025-12-15",
+    "return_date": "2025-12-20",
+    "passengers": 1,
+    "cabin_class": "economy",
+    "filters": {
+        "airlines": ["AirAsia", "QZ"]
+    }
+}
+
+### ============================================
+### Evening Flights Filter
+### ============================================
+POST http://localhost:8080/v1/flights/filter
+Content-Type: application/json
+
+{
+    "origin": "CGK",
+    "destination": "DPS",
+    "departure_date": "2025-12-15",
+    "return_date": "2025-12-20",
+    "passengers": 1,
+    "cabin_class": "economy",
+    "filters": {
+        "departure_time": {
+            "from": "18:00",
+            "to": "23:59"
+        }
+    }
+}
+
+### ============================================
+### Sort by Price (Lowest First)
+### ============================================
+POST http://localhost:8080/v1/flights/filter
+Content-Type: application/json
+
+{
+    "origin": "CGK",
+    "destination": "DPS",
+    "departure_date": "2025-12-15",
+    "return_date": "2025-12-20",
+    "passengers": 1,
+    "cabin_class": "economy",
+    "sort": {
+        "by": "price",
+        "order": "asc"
+    }
+}
+
+### ============================================
+### Sort by Price (Highest First)
+### ============================================
+POST http://localhost:8080/v1/flights/filter
+Content-Type: application/json
+
+{
+    "origin": "CGK",
+    "destination": "DPS",
+    "departure_date": "2025-12-15",
+    "return_date": "2025-12-20",
+    "passengers": 1,
+    "cabin_class": "economy",
+    "sort": {
+        "by": "price",
+        "order": "desc"
+    }
+}
+
+### ============================================
+### Sort by Duration (Shortest First)
+### ============================================
+POST http://localhost:8080/v1/flights/filter
+Content-Type: application/json
+
+{
+    "origin": "CGK",
+    "destination": "DPS",
+    "departure_date": "2025-12-15",
+    "return_date": "2025-12-20",
+    "passengers": 1,
+    "cabin_class": "economy",
+    "sort": {
+        "by": "duration",
+        "order": "asc"
+    }
+}
+
+### ============================================
+### Sort by Duration (Longest First)
+### ============================================
+POST http://localhost:8080/v1/flights/filter
+Content-Type: application/json
+
+{
+    "origin": "CGK",
+    "destination": "DPS",
+    "departure_date": "2025-12-15",
+    "return_date": "2025-12-20",
+    "passengers": 1,
+    "cabin_class": "economy",
+    "sort": {
+        "by": "duration",
+        "order": "desc"
+    }
+}
+
+### ============================================
+### Sort by Departure Time (Earliest First)
+### ============================================
+POST http://localhost:8080/v1/flights/filter
+Content-Type: application/json
+
+{
+    "origin": "CGK",
+    "destination": "DPS",
+    "departure_date": "2025-12-15",
+    "return_date": "2025-12-20",
+    "passengers": 1,
+    "cabin_class": "economy",
+    "sort": {
+        "by": "departure_time",
+        "order": "asc"
+    }
+}
+
+### ============================================
+### Sort by Departure Time (Latest First)
+### ============================================
+POST http://localhost:8080/v1/flights/filter
+Content-Type: application/json
+
+{
+    "origin": "CGK",
+    "destination": "DPS",
+    "departure_date": "2025-12-15",
+    "return_date": "2025-12-20",
+    "passengers": 1,
+    "cabin_class": "economy",
+    "sort": {
+        "by": "departure_time",
+        "order": "desc"
+    }
+}
+
+### ============================================
+### Sort by Arrival Time (Earliest First)
+### ============================================
+POST http://localhost:8080/v1/flights/filter
+Content-Type: application/json
+
+{
+    "origin": "CGK",
+    "destination": "DPS",
+    "departure_date": "2025-12-15",
+    "return_date": "2025-12-20",
+    "passengers": 1,
+    "cabin_class": "economy",
+    "sort": {
+        "by": "arrival_time",
+        "order": "asc"
+    }
+}
+
+### ============================================
+### Sort by Best Value (Best First)
+### ============================================
+POST http://localhost:8080/v1/flights/filter
+Content-Type: application/json
+
+{
+    "origin": "CGK",
+    "destination": "DPS",
+    "departure_date": "2025-12-15",
+    "return_date": "2025-12-20",
+    "passengers": 1,
+    "cabin_class": "economy",
+    "sort": {
+        "by": "best_value",
+        "order": "asc"
+    }
+}
+
+### ============================================
+### Filter + Sort Combined (Direct flights, cheapest first)
+### ============================================
+POST http://localhost:8080/v1/flights/filter
+Content-Type: application/json
+
+{
+    "origin": "CGK",
+    "destination": "DPS",
+    "departure_date": "2025-12-15",
+    "return_date": "2025-12-20",
+    "passengers": 1,
+    "cabin_class": "economy",
+    "filters": {
+        "max_stops": 0
+    },
+    "sort": {
+        "by": "price",
+        "order": "asc"
+    }
+}
+
+### ============================================
+### Filter + Sort - Morning Flights by Best Value
+### ============================================
+POST http://localhost:8080/v1/flights/filter
+Content-Type: application/json
+
+{
+    "origin": "CGK",
+    "destination": "DPS",
+    "departure_date": "2025-12-15",
+    "return_date": "2025-12-20",
+    "passengers": 1,
+    "cabin_class": "economy",
+    "filters": {
+        "departure_time": {
+            "from": "04:00",
+            "to": "12:00"
+        }
+    },
+    "sort": {
+        "by": "best_value",
+        "order": "asc"
+    }
+}
+
+### ============================================
+### Sort Only (No Filters) - Best Value
+### ============================================
+POST http://localhost:8080/v1/flights/filter
+Content-Type: application/json
+
+{
+    "origin": "CGK",
+    "destination": "DPS",
+    "departure_date": "2025-12-15",
+    "return_date": "2025-12-20",
+    "passengers": 1,
+    "cabin_class": "economy",
+    "sort": {
+        "by": "best_value",
+        "order": "asc"
     }
 }
