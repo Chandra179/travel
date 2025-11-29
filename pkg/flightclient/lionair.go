@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"time"
 	"travel/internal/flight"
 	"travel/pkg/logger"
 )
@@ -41,10 +42,10 @@ type lionAirFlight struct {
 		To   lionAirLocation `json:"to"`
 	} `json:"route"`
 	Schedule struct {
-		Departure         string `json:"departure"`
-		DepartureTimezone string `json:"departure_timezone"`
-		Arrival           string `json:"arrival"`
-		ArrivalTimezone   string `json:"arrival_timezone"`
+		Departure         time.Time `json:"departure"`
+		DepartureTimezone string    `json:"departure_timezone"`
+		Arrival           time.Time `json:"arrival"`
+		ArrivalTimezone   string    `json:"arrival_timezone"`
 	} `json:"schedule"`
 	FlightTime uint32 `json:"flight_time"` // In minutes
 	IsDirect   bool   `json:"is_direct"`

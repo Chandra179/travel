@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"time"
 	"travel/internal/flight"
 	"travel/pkg/logger"
 )
@@ -31,20 +32,20 @@ type batikAirFlightResponse struct {
 }
 
 type batikAirFlight struct {
-	FlightNumber      string   `json:"flightNumber"`
-	AirlineName       string   `json:"airlineName"`
-	AirlineIATA       string   `json:"airlineIATA"`
-	Origin            string   `json:"origin"`
-	Destination       string   `json:"destination"`
-	DepartureDateTime string   `json:"departureDateTime"` // String, needs parsing
-	ArrivalDateTime   string   `json:"arrivalDateTime"`   // String, needs parsing
-	TravelTime        string   `json:"travelTime"`        // e.g. "1h 45m"
-	NumberOfStops     uint32   `json:"numberOfStops"`
-	Fare              fare     `json:"fare"`
-	SeatsAvailable    uint32   `json:"seatsAvailable"`
-	AircraftModel     string   `json:"aircraftModel"`
-	BaggageInfo       string   `json:"baggageInfo"`
-	OnboardServices   []string `json:"onboardServices"`
+	FlightNumber      string    `json:"flightNumber"`
+	AirlineName       string    `json:"airlineName"`
+	AirlineIATA       string    `json:"airlineIATA"`
+	Origin            string    `json:"origin"`
+	Destination       string    `json:"destination"`
+	DepartureDateTime time.Time `json:"departureDateTime"` // String, needs parsing
+	ArrivalDateTime   time.Time `json:"arrivalDateTime"`   // String, needs parsing
+	TravelTime        string    `json:"travelTime"`        // e.g. "1h 45m"
+	NumberOfStops     uint32    `json:"numberOfStops"`
+	Fare              fare      `json:"fare"`
+	SeatsAvailable    uint32    `json:"seatsAvailable"`
+	AircraftModel     string    `json:"aircraftModel"`
+	BaggageInfo       string    `json:"baggageInfo"`
+	OnboardServices   []string  `json:"onboardServices"`
 }
 
 type fare struct {
