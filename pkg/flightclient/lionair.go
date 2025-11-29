@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"travel/internal/flight"
 	"travel/pkg/logger"
 )
 
@@ -73,17 +74,20 @@ type lionAirLocation struct {
 	City string `json:"city"`
 }
 
-func (a *LionAirClient) GetFlights() (*lionAirFlightResponse, error) {
+func (a *LionAirClient) SearchFlights(req flight.SearchRequest) (*lionAirFlightResponse, error) {
 	url := fmt.Sprintf("%s/lionair/v1/flights/search", a.baseURL)
 
-	body := bytes.NewBuffer([]byte(`{}`))
-	req, err := http.NewRequest(http.MethodPost, url, body)
+	reqBody, err := json.Marshal(req)
 	if err != nil {
-		a.logger.Error("failed to build lionair request", logger.Field{Key: "error", Value: err})
+		return nil, fmt.Errorf("failed to marshal request: %w", err)
+	}
+
+	r, err := http.NewRequest(http.MethodGet, url, bytes.NewBuffer(reqBody))
+	if err != nil {
 		return nil, fmt.Errorf("failed to build request: %w", err)
 	}
 
-	resp, err := a.httpClient.Do(req)
+	resp, err := a.httpClient.Do(r)
 	if err != nil {
 		return nil, fmt.Errorf("external api call failed: %w", err)
 	}

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"travel/internal/flight"
 	"travel/pkg/logger"
 )
 
@@ -53,19 +54,22 @@ type fare struct {
 	Class        string `json:"class"`
 }
 
-// Update the Client method
-func (a *BatikAirClient) GetFlights() (*batikAirFlightResponse, error) {
+func (a *BatikAirClient) SearchFlights(req flight.SearchRequest) (*batikAirFlightResponse, error) {
 	url := fmt.Sprintf("%s/batikair/v1/flights/search", a.baseURL)
 
-	body := bytes.NewBuffer([]byte(`{}`))
+	reqBody, err := json.Marshal(req)
+	if err != nil {
+		a.logger.Error("failed to marshal request body", logger.Field{Key: "error", Value: err})
+		return nil, fmt.Errorf("failed to marshal request: %w", err)
+	}
 
-	req, err := http.NewRequest(http.MethodPost, url, body)
+	r, err := http.NewRequest(http.MethodGet, url, bytes.NewBuffer(reqBody))
 	if err != nil {
 		a.logger.Error("failed to build batik request", logger.Field{Key: "error", Value: err})
 		return nil, fmt.Errorf("failed to build request: %w", err)
 	}
 
-	resp, err := a.httpClient.Do(req)
+	resp, err := a.httpClient.Do(r)
 	if err != nil {
 		return nil, fmt.Errorf("external api call failed: %w", err)
 	}

@@ -8,19 +8,6 @@ services:
       - "6379:6379"
     volumes:
       - redis-data:/data
-  
-  wiremock:
-    image: wiremock/wiremock:latest
-    container_name: flight-mock
-    ports:
-      - "8081:8080"
-    volumes:
-      - ./mock:/home/wiremock
-    command: [
-      "--global-response-templating",
-      "--port", "8080",
-      "--verbose"
-    ]
 
 volumes:
   redis-data:

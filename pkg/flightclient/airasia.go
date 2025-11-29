@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"time"
+	"travel/internal/flight"
 	"travel/pkg/logger"
 )
 
@@ -46,40 +48,38 @@ type airAsiaFlight struct {
 	} `json:"stops"`
 }
 
-func (a *AirAsiaClient) GetFlights() (*airAsiaFlightResponse, error) {
+func (a *AirAsiaClient) SearchFlights(req flight.SearchRequest) (*airAsiaFlightResponse, error) {
 	url := fmt.Sprintf("%s/airasia/v1/flights/search", a.baseURL)
 
-	a.logger.Debug("starting airasia flight search",
-		logger.Field{Key: "url", Value: url},
-		logger.Field{Key: "method", Value: http.MethodPost},
-	)
+	reqBody, err := json.Marshal(req)
+	if err != nil {
+		a.logger.Error("failed to marshal request body", logger.Field{Key: "error", Value: err})
+		return nil, fmt.Errorf("failed to marshal request: %w", err)
+	}
 
-	body := bytes.NewBuffer([]byte(`{"a":"b"}`))
-	req, err := http.NewRequest(http.MethodPost, url, body)
+	r, err := http.NewRequest(http.MethodPost, url, bytes.NewBuffer(reqBody))
 	if err != nil {
 		a.logger.Error("failed to build airasia request", logger.Field{Key: "error", Value: err})
 		return nil, fmt.Errorf("failed to build request: %w", err)
 	}
 
-	resp, err := a.httpClient.Do(req)
+	r.Header.Set("Content-Type", "application/json")
+
+	resp, err := a.httpClient.Do(r)
 	if err != nil {
-		a.logger.Error("external api call to airasia failed",
-			logger.Field{Key: "url", Value: url},
-			logger.Field{Key: "error", Value: err},
-		)
 		return nil, fmt.Errorf("external api call failed: %w", err)
 	}
 	defer resp.Body.Close()
 
-	a.logger.Debug("received response from airasia",
-		logger.Field{Key: "status_code", Value: resp.StatusCode},
-	)
-
 	if resp.StatusCode != http.StatusOK {
-		a.logger.Error("airasia api returned non-200 status",
-			logger.Field{Key: "status_code", Value: resp.StatusCode},
-			logger.Field{Key: "url", Value: url},
+		bodyBytes, _ := io.ReadAll(resp.Body)
+		serverMessage := string(bodyBytes)
+
+		a.logger.Error("external api error",
+			logger.Field{Key: "status", Value: resp.StatusCode},
+			logger.Field{Key: "message", Value: serverMessage},
 		)
+
 		return nil, fmt.Errorf("external api returned non-200 status: %d", resp.StatusCode)
 	}
 
@@ -88,11 +88,6 @@ func (a *AirAsiaClient) GetFlights() (*airAsiaFlightResponse, error) {
 		a.logger.Error("failed to decode airasia json response", logger.Field{Key: "error", Value: err})
 		return nil, fmt.Errorf("failed to decode json response: %w", err)
 	}
-
-	a.logger.Info("successfully retrieved flights from airasia",
-		logger.Field{Key: "flight_count", Value: len(apiResp.Flights)},
-		logger.Field{Key: "provider_status", Value: apiResp.Status},
-	)
 
 	return &apiResp, nil
 }

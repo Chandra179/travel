@@ -5,7 +5,7 @@ import (
 )
 
 type FlightClient interface {
-	GetFlights() (*FlightSearchResponse, error)
+	SearchFlights(req SearchRequest) (*FlightSearchResponse, error)
 }
 
 type Service struct {
@@ -34,20 +34,12 @@ type DepartureTime struct {
 }
 
 type SearchRequest struct {
-	FlightDuration uint32        `json:"flight_duration"`
-	StopCount      uint32        `json:"stop_count"`
-	Passengers     uint32        `json:"passengers"`
-	CabinClass     string        `json:"cabin_class"`
-	Origin         string        `json:"origin"`
-	Destination    string        `json:"destination"`
-	DepartureDate  string        `json:"departure_date"`
-	ReturnDate     string        `json:"return_date"`
-	SortBy         string        `json:"sort_by"`
-	Currency       string        `json:"currency"`
-	Airlines       string        `json:"airlines"`
-	DepartureTime  DepartureTime `json:"departure_time"`
-	ArrivalTime    ArrivalTime   `json:"arrival_time"`
-	PriceRange     PriceRange    `json:"price_range"`
+	Origin        string `json:"origin"`
+	Destination   string `json:"destination"`
+	DepartureDate string `json:"departure_date"`
+	ReturnDate    string `json:"return_date"`
+	Passengers    uint32 `json:"passengers"`
+	CabinClass    string `json:"cabin_class"`
 }
 
 type FlightSearchResponse struct {
@@ -118,5 +110,5 @@ type Baggage struct {
 }
 
 func (c *Service) SearchFlights(req SearchRequest) (*FlightSearchResponse, error) {
-	return c.flightClient.GetFlights()
+	return c.flightClient.SearchFlights(req)
 }

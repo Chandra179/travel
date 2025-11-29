@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"travel/internal/flight"
 	"travel/pkg/logger"
 )
 
@@ -67,17 +68,20 @@ type garudaSegment struct {
 	Arrival      garudaLocation `json:"arrival"`
 }
 
-func (a *GarudaClient) GetFlights() (*garudaFlightResponse, error) {
+func (a *GarudaClient) SearchFlights(req flight.SearchRequest) (*garudaFlightResponse, error) {
 	url := fmt.Sprintf("%s/garuda/v1/flights/search", a.baseURL)
 
-	body := bytes.NewBuffer([]byte(`{}`))
-	req, err := http.NewRequest(http.MethodPost, url, body)
+	reqBody, err := json.Marshal(req)
 	if err != nil {
-		a.logger.Error("failed to build garuda request", logger.Field{Key: "error", Value: err})
+		return nil, fmt.Errorf("failed to marshal request: %w", err)
+	}
+
+	r, err := http.NewRequest(http.MethodGet, url, bytes.NewBuffer(reqBody))
+	if err != nil {
 		return nil, fmt.Errorf("failed to build request: %w", err)
 	}
 
-	resp, err := a.httpClient.Do(req)
+	resp, err := a.httpClient.Do(r)
 	if err != nil {
 		return nil, fmt.Errorf("external api call failed: %w", err)
 	}

@@ -28,26 +28,26 @@ func NewFlightClient(airAsiaClient *AirAsiaClient, batikAirClient *BatikAirClien
 	}
 }
 
-func (f *FlightManager) GetFlights() (*flight.FlightSearchResponse, error) {
-	airAsiaResp, errAA := f.airAsiaClient.GetFlights()
+func (f *FlightManager) SearchFlights(req flight.SearchRequest) (*flight.FlightSearchResponse, error) {
+	airAsiaResp, errAA := f.airAsiaClient.SearchFlights(req)
 	if errAA != nil {
 		f.logger.Error("failed to fetch airasia", logger.Field{Key: "err", Value: errAA})
 		return nil, errAA
 	}
 
-	batikResp, errBatik := f.batikAirClient.GetFlights()
+	batikResp, errBatik := f.batikAirClient.SearchFlights(req)
 	if errBatik != nil {
 		f.logger.Error("failed to fetch batik", logger.Field{Key: "err", Value: errBatik})
 		return nil, errBatik
 	}
 
-	garudaResp, errGaruda := f.garudaClient.GetFlights()
+	garudaResp, errGaruda := f.garudaClient.SearchFlights(req)
 	if errGaruda != nil {
 		f.logger.Error("failed to fetch garuda", logger.Field{Key: "err", Value: errGaruda})
 		return nil, errGaruda
 	}
 
-	lionAirResp, errLionAir := f.lionAirClient.GetFlights()
+	lionAirResp, errLionAir := f.lionAirClient.SearchFlights(req)
 	if errLionAir != nil {
 		f.logger.Error("failed to fetch lion air", logger.Field{Key: "err", Value: errLionAir})
 		return nil, errLionAir
@@ -74,39 +74,31 @@ func (f *FlightManager) GetFlights() (*flight.FlightSearchResponse, error) {
 
 func (f *FlightManager) mapLionAirFlights(resp *lionAirFlightResponse) []flight.Flight {
 	mapped := make([]flight.Flight, 0, len(resp.Data.AvailableFlights))
-	// Time layout for "2025-12-15T05:30:00"
 	const timeLayout = "2006-01-02T15:04:05"
 
 	for _, lFlight := range resp.Data.AvailableFlights {
-		// 1. Calculate Duration
 		totalMinutes := lFlight.FlightTime
 		hours := totalMinutes / 60
 		minutes := totalMinutes % 60
 		formattedDuration := fmt.Sprintf("%dh %dm", hours, minutes)
 
-		// 2. Parse Times with Timezone (Requires loading the location)
-		// Departure Time
 		locDep, err := time.LoadLocation(lFlight.Schedule.DepartureTimezone)
 		if err != nil {
-			// Handle error or use UTC/fallback
 			locDep = time.UTC
 		}
 		depTime, _ := time.ParseInLocation(timeLayout, lFlight.Schedule.Departure, locDep)
 
-		// Arrival Time
 		locArr, err := time.LoadLocation(lFlight.Schedule.ArrivalTimezone)
 		if err != nil {
 			locArr = time.UTC
 		}
 		arrTime, _ := time.ParseInLocation(timeLayout, lFlight.Schedule.Arrival, locArr)
 
-		// 3. Determine Stop Count
 		stopCount := lFlight.StopCount
 		if !lFlight.IsDirect && stopCount == 0 && len(lFlight.Layovers) > 0 {
 			stopCount = uint32(len(lFlight.Layovers))
 		}
 
-		// 4. Determine Amenities
 		amenities := make([]string, 0)
 		if lFlight.Services.WifiAvailable {
 			amenities = append(amenities, "Wi-Fi")
@@ -114,7 +106,6 @@ func (f *FlightManager) mapLionAirFlights(resp *lionAirFlightResponse) []flight.
 		if lFlight.Services.MealsIncluded {
 			amenities = append(amenities, "Meal")
 		}
-		// Can add more services if needed
 
 		domainFlight := flight.Flight{
 			ID:       lFlight.ID,
