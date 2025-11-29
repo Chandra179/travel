@@ -35,12 +35,12 @@ func (s *Service) SearchFlights(ctx context.Context, req SearchRequest) (*Flight
 
 	responseBytes, err := json.Marshal(response)
 	if err != nil {
-		s.logger.Error("Failed to marshal response", logger.Field{Key: "err", Value: err})
+		s.logger.Error("SearchFlights", logger.Field{Key: "err_marshal", Value: err})
 		return response, nil // Return response even if caching fails
 	}
 
 	if err := s.cache.Set(ctx, cacheKey, string(responseBytes), s.ttl); err != nil {
-		s.logger.Error("Failed to cache response", logger.Field{Key: "err", Value: err})
+		s.logger.Error("SearchFlights", logger.Field{Key: "err_set_cache", Value: err})
 	}
 
 	return response, nil

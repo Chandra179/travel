@@ -55,32 +55,29 @@ func (a *AirAsiaClient) SearchFlights(ctx context.Context, req flight.SearchRequ
 
 	reqBody, err := json.Marshal(req)
 	if err != nil {
-		a.logger.Error("failed to marshal request body", logger.Field{Key: "error", Value: err})
-		return nil, fmt.Errorf("failed to marshal request: %w", err)
+		return nil, fmt.Errorf("airasia: failed to marshal request: %w", err)
 	}
 
 	r, err := http.NewRequest(http.MethodPost, url, bytes.NewBuffer(reqBody))
 	if err != nil {
-		a.logger.Error("failed to build airasia request", logger.Field{Key: "error", Value: err})
-		return nil, fmt.Errorf("failed to build request: %w", err)
+		return nil, fmt.Errorf("airasia: failed to build request: %w", err)
 	}
 
 	r.Header.Set("Content-Type", "application/json")
 
 	resp, err := a.httpClient.Do(r)
 	if err != nil {
-		return nil, fmt.Errorf("external api call failed: %w", err)
+		return nil, fmt.Errorf("airasia: external api call failed: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("external api returned non-200 status: %d", resp.StatusCode)
+		return nil, fmt.Errorf("airasia: external api returned non-200 status: %d", resp.StatusCode)
 	}
 
 	var apiResp airAsiaFlightResponse
 	if err := json.NewDecoder(resp.Body).Decode(&apiResp); err != nil {
-		a.logger.Error("failed to decode airasia json response", logger.Field{Key: "error", Value: err})
-		return nil, fmt.Errorf("failed to decode json response: %w", err)
+		return nil, fmt.Errorf("airasia: failed to decode json response: %w", err)
 	}
 
 	return &apiResp, nil

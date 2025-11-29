@@ -41,6 +41,15 @@ func (s *Service) generateCacheKey(req SearchRequest) string {
 	return fmt.Sprintf("flight:search:%x", hash[:16])
 }
 
+type ErrorCode string
+
+const (
+	ErrorCodeTimeout            ErrorCode = "TIMEOUT"
+	ErrorCodeInvalidResponse    ErrorCode = "INVALID_RESPONSE"
+	ErrorCodeServiceUnavailable ErrorCode = "SERVICE_UNAVAILABLE"
+	ErrorCodeInternalFailure    ErrorCode = "INTERNAL_FAILURE"
+)
+
 type PriceRange struct {
 	Low  uint64 `json:"low"`
 	High uint64 `json:"high"`
@@ -79,14 +88,21 @@ type SearchCriteria struct {
 	CabinClass    string `json:"cabin_class"`
 }
 
+type ProviderError struct {
+	Provider string    `json:"provider"`
+	Code     ErrorCode `json:"code"`
+	Message  string    `json:"message"`
+}
+
 type Metadata struct {
-	TotalResults       uint32 `json:"total_results"`
-	ProvidersQueried   uint32 `json:"providers_queried"`
-	ProvidersSucceeded uint32 `json:"providers_succeeded"`
-	ProvidersFailed    uint32 `json:"providers_failed"`
-	SearchTimeMs       uint32 `json:"search_time_ms"`
-	CacheKey           string `json:"cache_key"`
-	CacheHit           bool   `json:"cache_hit"`
+	TotalResults       uint32          `json:"total_results"`
+	ProvidersQueried   uint32          `json:"providers_queried"`
+	ProvidersSucceeded uint32          `json:"providers_succeeded"`
+	ProvidersFailed    uint32          `json:"providers_failed"`
+	ProviderErrors     []ProviderError `json:"provider_errors,omitempty"`
+	SearchTimeMs       uint32          `json:"search_time_ms,omitempty"`
+	CacheHit           bool            `json:"cache_hit"`
+	CacheKey           string          `json:"cache_key,omitempty"`
 }
 
 type Flight struct {

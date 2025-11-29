@@ -2,6 +2,7 @@ package flightclient
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math"
 	"strings"
@@ -31,16 +32,17 @@ func NewFlightClient(airAsiaClient *AirAsiaClient, batikAirClient *BatikAirClien
 }
 
 type providerResult struct {
-	provider string
-	flights  []flight.Flight
-	err      error
+	provider  string
+	flights   []flight.Flight
+	err       error
+	errorCode flight.ErrorCode
 }
 
 func (f *FlightManager) SearchFlights(ctx context.Context, req flight.SearchRequest) (*flight.FlightSearchResponse, error) {
 	ctx, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
 
-	resultChan := make(chan providerResult, 6)
+	resultChan := make(chan providerResult, 4)
 	var wg sync.WaitGroup
 
 	wg.Add(4)
@@ -49,8 +51,9 @@ func (f *FlightManager) SearchFlights(ctx context.Context, req flight.SearchRequ
 		defer wg.Done()
 		resp, err := f.airAsiaClient.SearchFlights(ctx, req)
 		if err != nil {
+			errCode := categorizeError(err)
 			f.logger.Error("failed to fetch airasia", logger.Field{Key: "err", Value: err})
-			resultChan <- providerResult{provider: "AirAsia", err: err}
+			resultChan <- providerResult{provider: "AirAsia", err: err, errorCode: errCode}
 			return
 		}
 		flights := f.mapAirAsiaFlights(resp)
@@ -61,8 +64,9 @@ func (f *FlightManager) SearchFlights(ctx context.Context, req flight.SearchRequ
 		defer wg.Done()
 		resp, err := f.batikAirClient.SearchFlights(ctx, req)
 		if err != nil {
+			errCode := categorizeError(err)
 			f.logger.Error("failed to fetch batik", logger.Field{Key: "err", Value: err})
-			resultChan <- providerResult{provider: "Batik Air", err: err}
+			resultChan <- providerResult{provider: "Batik Air", err: err, errorCode: errCode}
 			return
 		}
 		flights := f.mapBatikFlights(resp)
@@ -73,8 +77,9 @@ func (f *FlightManager) SearchFlights(ctx context.Context, req flight.SearchRequ
 		defer wg.Done()
 		resp, err := f.garudaClient.SearchFlights(ctx, req)
 		if err != nil {
+			errCode := categorizeError(err)
 			f.logger.Error("failed to fetch garuda", logger.Field{Key: "err", Value: err})
-			resultChan <- providerResult{provider: "Garuda Indonesia", err: err}
+			resultChan <- providerResult{provider: "Garuda Indonesia", err: err, errorCode: errCode}
 			return
 		}
 		flights := f.mapGarudaFlights(resp)
@@ -85,8 +90,9 @@ func (f *FlightManager) SearchFlights(ctx context.Context, req flight.SearchRequ
 		defer wg.Done()
 		resp, err := f.lionAirClient.SearchFlights(ctx, req)
 		if err != nil {
+			errCode := categorizeError(err)
 			f.logger.Error("failed to fetch lion air", logger.Field{Key: "err", Value: err})
-			resultChan <- providerResult{provider: "Lion Air", err: err}
+			resultChan <- providerResult{provider: "Lion Air", err: err, errorCode: errCode}
 			return
 		}
 		flights := f.mapLionAirFlights(resp)
@@ -99,13 +105,22 @@ func (f *FlightManager) SearchFlights(ctx context.Context, req flight.SearchRequ
 	}()
 
 	var allFlights []flight.Flight
+	var providerErrors []flight.ProviderError
 	providersSucceeded := uint32(0)
+	providersFailed := uint32(0)
 	providersQueried := uint32(4)
 
 	for result := range resultChan {
 		if result.err == nil {
 			allFlights = append(allFlights, result.flights...)
 			providersSucceeded++
+		} else {
+			providersFailed++
+			providerErrors = append(providerErrors, flight.ProviderError{
+				Provider: result.provider,
+				Code:     result.errorCode,
+				Message:  result.err.Error(),
+			})
 		}
 	}
 
@@ -115,6 +130,8 @@ func (f *FlightManager) SearchFlights(ctx context.Context, req flight.SearchRequ
 			TotalResults:       uint32(len(allFlights)),
 			ProvidersQueried:   providersQueried,
 			ProvidersSucceeded: providersSucceeded,
+			ProvidersFailed:    providersFailed,
+			ProviderErrors:     providerErrors,
 		},
 	}, nil
 }
@@ -360,4 +377,19 @@ func (f *FlightManager) parseBatikDuration(input string) (uint32, string) {
 	h := minutes / 60
 	m := minutes % 60
 	return minutes, fmt.Sprintf("%dh %dm", h, m)
+}
+
+func categorizeError(err error) flight.ErrorCode {
+	if err == nil {
+		return ""
+	}
+	errMsg := err.Error()
+
+	if errors.Is(err, context.DeadlineExceeded) ||
+		strings.Contains(errMsg, "timeout") ||
+		strings.Contains(errMsg, "deadline exceeded") {
+		return flight.ErrorCodeTimeout
+	}
+
+	return flight.ErrorCodeInternalFailure
 }
