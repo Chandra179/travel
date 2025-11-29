@@ -37,9 +37,9 @@ type batikAirFlight struct {
 	AirlineIATA       string    `json:"airlineIATA"`
 	Origin            string    `json:"origin"`
 	Destination       string    `json:"destination"`
-	DepartureDateTime time.Time `json:"departureDateTime"` // String, needs parsing
-	ArrivalDateTime   time.Time `json:"arrivalDateTime"`   // String, needs parsing
-	TravelTime        string    `json:"travelTime"`        // e.g. "1h 45m"
+	DepartureDateTime time.Time `json:"departureDateTime"`
+	ArrivalDateTime   time.Time `json:"arrivalDateTime"`
+	TravelTime        string    `json:"travelTime"`
 	NumberOfStops     uint32    `json:"numberOfStops"`
 	Fare              fare      `json:"fare"`
 	SeatsAvailable    uint32    `json:"seatsAvailable"`

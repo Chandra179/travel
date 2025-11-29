@@ -31,22 +31,24 @@ type airAsiaFlightResponse struct {
 	Flights []airAsiaFlight `json:"flights"`
 }
 
+type airAsiaStop struct {
+	Airport string `json:"airport"`
+}
+
 type airAsiaFlight struct {
-	FlightCode    string    `json:"flight_code"`
-	Airline       string    `json:"airline"`
-	FromAirport   string    `json:"from_airport"`
-	ToAirport     string    `json:"to_airport"`
-	DepartTime    time.Time `json:"depart_time"`
-	ArriveTime    time.Time `json:"arrive_time"`
-	DurationHours float64   `json:"duration_hours"`
-	DirectFlight  bool      `json:"direct_flight"`
-	PriceIDR      uint64    `json:"price_idr"`
-	Seats         uint32    `json:"seats"`
-	CabinClass    string    `json:"cabin_class"`
-	BaggageNote   string    `json:"baggage_note"`
-	Stops         []struct {
-		Airport string `json:"airport"`
-	} `json:"stops"`
+	FlightCode    string        `json:"flight_code"`
+	Airline       string        `json:"airline"`
+	FromAirport   string        `json:"from_airport"`
+	ToAirport     string        `json:"to_airport"`
+	DepartTime    time.Time     `json:"depart_time"`
+	ArriveTime    time.Time     `json:"arrive_time"`
+	DurationHours float64       `json:"duration_hours"`
+	DirectFlight  bool          `json:"direct_flight"`
+	PriceIDR      uint64        `json:"price_idr"`
+	Seats         uint32        `json:"seats"`
+	CabinClass    string        `json:"cabin_class"`
+	BaggageNote   string        `json:"baggage_note"`
+	Stops         []airAsiaStop `json:"stops"`
 }
 
 func (a *AirAsiaClient) SearchFlights(ctx context.Context, req flight.SearchRequest) (*airAsiaFlightResponse, error) {

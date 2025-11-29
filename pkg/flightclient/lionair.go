@@ -25,49 +25,65 @@ func NewLionAirClient(httpClient *http.Client, baseURL string, logger logger.Cli
 	}
 }
 
-type lionAirFlightResponse struct {
-	Data struct {
-		AvailableFlights []lionAirFlight `json:"available_flights"`
-	} `json:"data"`
+type lionAirFlightData struct {
+	AvailableFlights []LionAirFlight `json:"available_flights"`
 }
 
-type lionAirFlight struct {
-	ID      string `json:"id"`
-	Carrier struct {
-		Name string `json:"name"`
-		IATA string `json:"iata"`
-	} `json:"carrier"`
-	Route struct {
-		From lionAirLocation `json:"from"`
-		To   lionAirLocation `json:"to"`
-	} `json:"route"`
-	Schedule struct {
-		Departure         time.Time `json:"departure"`
-		DepartureTimezone string    `json:"departure_timezone"`
-		Arrival           time.Time `json:"arrival"`
-		ArrivalTimezone   string    `json:"arrival_timezone"`
-	} `json:"schedule"`
-	FlightTime uint32 `json:"flight_time"` // In minutes
-	IsDirect   bool   `json:"is_direct"`
-	StopCount  uint32 `json:"stop_count,omitempty"`
-	Layovers   []struct {
-		Airport string `json:"airport"`
-	} `json:"layovers,omitempty"`
-	Pricing struct {
-		Total    uint64 `json:"total"`
-		Currency string `json:"currency"`
-		FareType string `json:"fare_type"`
-	} `json:"pricing"`
-	SeatsLeft uint32 `json:"seats_left"`
-	PlaneType string `json:"plane_type"`
-	Services  struct {
-		WifiAvailable    bool `json:"wifi_available"`
-		MealsIncluded    bool `json:"meals_included"`
-		BaggageAllowance struct {
-			Cabin string `json:"cabin"`
-			Hold  string `json:"hold"`
-		} `json:"baggage_allowance"`
-	} `json:"services"`
+type LionAirFlightResponse struct {
+	Data lionAirFlightData `json:"data"`
+}
+
+type lionAirCarrier struct {
+	Name string `json:"name"`
+	IATA string `json:"iata"`
+}
+
+type lionAirRoute struct {
+	From lionAirLocation `json:"from"`
+	To   lionAirLocation `json:"to"`
+}
+
+type lionAirSchedule struct {
+	Departure         time.Time `json:"departure"`
+	DepartureTimezone string    `json:"departure_timezone"`
+	Arrival           time.Time `json:"arrival"`
+	ArrivalTimezone   string    `json:"arrival_timezone"`
+}
+
+type lionAirLayover struct {
+	Airport string `json:"airport"`
+}
+
+type lionAirPricing struct {
+	Total    uint64 `json:"total"`
+	Currency string `json:"currency"`
+	FareType string `json:"fare_type"`
+}
+
+type lionAirBaggage struct {
+	Cabin string `json:"cabin"`
+	Hold  string `json:"hold"`
+}
+
+type lionAirServices struct {
+	WifiAvailable    bool           `json:"wifi_available"`
+	MealsIncluded    bool           `json:"meals_included"`
+	BaggageAllowance lionAirBaggage `json:"baggage_allowance"`
+}
+
+type LionAirFlight struct {
+	ID         string           `json:"id"`
+	Carrier    lionAirCarrier   `json:"carrier"`
+	Route      lionAirRoute     `json:"route"`
+	Schedule   lionAirSchedule  `json:"schedule"`
+	FlightTime uint32           `json:"flight_time"`
+	IsDirect   bool             `json:"is_direct"`
+	StopCount  uint32           `json:"stop_count,omitempty"`
+	Layovers   []lionAirLayover `json:"layovers,omitempty"`
+	Pricing    lionAirPricing   `json:"pricing"`
+	SeatsLeft  uint32           `json:"seats_left"`
+	PlaneType  string           `json:"plane_type"`
+	Services   lionAirServices  `json:"services"`
 }
 
 type lionAirLocation struct {
@@ -76,7 +92,7 @@ type lionAirLocation struct {
 	City string `json:"city"`
 }
 
-func (a *LionAirClient) SearchFlights(ctx context.Context, req flight.SearchRequest) (*lionAirFlightResponse, error) {
+func (a *LionAirClient) SearchFlights(ctx context.Context, req flight.SearchRequest) (*LionAirFlightResponse, error) {
 	url := fmt.Sprintf("%s/lionair/v1/flights/search", a.baseURL)
 
 	reqBody, err := json.Marshal(req)
@@ -99,7 +115,7 @@ func (a *LionAirClient) SearchFlights(ctx context.Context, req flight.SearchRequ
 		return nil, fmt.Errorf("external api returned non-200 status: %d", resp.StatusCode)
 	}
 
-	var apiResp lionAirFlightResponse
+	var apiResp LionAirFlightResponse
 	if err := json.NewDecoder(resp.Body).Decode(&apiResp); err != nil {
 		return nil, fmt.Errorf("failed to decode lionair response: %w", err)
 	}

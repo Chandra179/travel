@@ -1,2 +1,3 @@
 price low cannot be higher than price high
-caching per 
+caching per
+id = code + provider

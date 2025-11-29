@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"time"
 	"travel/internal/flight"
 	"travel/pkg/logger"
 )
@@ -43,14 +44,14 @@ type garudaFlight struct {
 	FareClass       string          `json:"fare_class"`
 	Baggage         garudaBaggage   `json:"baggage"`
 	Amenities       []string        `json:"amenities"`
-	Segments        []garudaSegment `json:"segments,omitempty"` // Handle complex flights
+	Segments        []garudaSegment `json:"segments,omitempty"`
 }
 
 type garudaLocation struct {
-	Airport  string `json:"airport"`
-	City     string `json:"city"`
-	Time     string `json:"time"` // ISO 8601
-	Terminal string `json:"terminal"`
+	Airport  string    `json:"airport"`
+	City     string    `json:"city"`
+	Time     time.Time `json:"time"`
+	Terminal string    `json:"terminal"`
 }
 
 type garudaPrice struct {

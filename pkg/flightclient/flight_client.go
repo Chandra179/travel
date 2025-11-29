@@ -119,7 +119,7 @@ func (f *FlightManager) SearchFlights(ctx context.Context, req flight.SearchRequ
 	}, nil
 }
 
-func (f *FlightManager) mapLionAirFlights(resp *lionAirFlightResponse) []flight.Flight {
+func (f *FlightManager) mapLionAirFlights(resp *LionAirFlightResponse) []flight.Flight {
 	mapped := make([]flight.Flight, 0, len(resp.Data.AvailableFlights))
 
 	for _, lFlight := range resp.Data.AvailableFlights {
@@ -192,15 +192,12 @@ func (f *FlightManager) mapGarudaFlights(resp *garudaFlightResponse) []flight.Fl
 		minutes := gFlight.DurationMinutes % 60
 		formattedDuration := fmt.Sprintf("%dh %dm", hours, minutes)
 
-		depTime, _ := time.Parse(time.RFC3339, gFlight.Departure.Time)
-
 		finalArrival := gFlight.Arrival
 		if len(gFlight.Segments) > 0 {
 			lastSegment := gFlight.Segments[len(gFlight.Segments)-1]
 			finalArrival = lastSegment.Arrival
 		}
 
-		arrTime, _ := time.Parse(time.RFC3339, finalArrival.Time)
 		baggageCabin := fmt.Sprintf("Cabin: %d", gFlight.Baggage.CarryOn)
 		baggageChecked := fmt.Sprintf("Checked: %d", gFlight.Baggage.Checked)
 
@@ -214,15 +211,15 @@ func (f *FlightManager) mapGarudaFlights(resp *garudaFlightResponse) []flight.Fl
 			FlightNumber: gFlight.FlightID,
 			Departure: flight.LocationTime{
 				Airport:   gFlight.Departure.Airport,
-				Datetime:  depTime,
+				Datetime:  gFlight.Departure.Time,
 				City:      gFlight.Departure.City,
-				Timestamp: depTime.Unix(),
+				Timestamp: gFlight.Departure.Time.Unix(),
 			},
 			Arrival: flight.LocationTime{
 				Airport:   finalArrival.Airport,
-				Datetime:  arrTime,
+				Datetime:  gFlight.Arrival.Time,
 				City:      gFlight.Arrival.City,
-				Timestamp: arrTime.Unix(),
+				Timestamp: gFlight.Arrival.Time.Unix(),
 			},
 			Duration: flight.Duration{
 				TotalMinutes: gFlight.DurationMinutes,
