@@ -45,7 +45,6 @@ func (h *FlightHandler) SearchFlightsHandler(c *gin.Context) {
 
 func (h *FlightHandler) FilterFlightsHandler(c *gin.Context) {
 	var req FilterRequest
-
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": fmt.Sprintf("Invalid request format: %v", err),
@@ -55,21 +54,7 @@ func (h *FlightHandler) FilterFlightsHandler(c *gin.Context) {
 
 	response, err := h.service.FilterFlights(c.Request.Context(), req)
 	if err != nil {
-		if err.Error() == "no search results found in cache - please search first" {
-			c.JSON(http.StatusNotFound, gin.H{
-				"error": "No search results found. Please call /v1/flights/search first.",
-			})
-			return
-		}
-
-		if err.Error() == "invalid cache key format" {
-			c.JSON(http.StatusBadRequest, gin.H{
-				"error": "Invalid cache key format.",
-			})
-			return
-		}
-
-		c.JSON(http.StatusInternalServerError, gin.H{
+		c.JSON(http.StatusBadRequest, gin.H{
 			"error": fmt.Sprintf("Flight filter failed: %v", err),
 		})
 		return
