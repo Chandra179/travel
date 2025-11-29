@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"time"
 	"travel/internal/flight"
@@ -75,14 +74,6 @@ func (a *AirAsiaClient) SearchFlights(ctx context.Context, req flight.SearchRequ
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		bodyBytes, _ := io.ReadAll(resp.Body)
-		serverMessage := string(bodyBytes)
-
-		a.logger.Error("external api error",
-			logger.Field{Key: "status", Value: resp.StatusCode},
-			logger.Field{Key: "message", Value: serverMessage},
-		)
-
 		return nil, fmt.Errorf("external api returned non-200 status: %d", resp.StatusCode)
 	}
 
