@@ -1,6 +1,6 @@
 # Online Travel Agency
 
-ota: flights
+Flight Search & Aggregation System
 
 ## Project Structure
 
@@ -13,20 +13,36 @@ ota: flights
 │   ├── logger/                        # Zerolog wrapper & helpers
 ├── api/
 ├── cfg/                               # Centralized config files (YAML, JSON, HCL)
-│   ├── app.yaml
-│   └── redis.yaml
+│   ├── config.go
 
 ```
 
-## Key Points
+## Features
+fligt search
+flight filter
 
-1. **`cmd/` folder**  
-   - Each subdirectory represents a **separate runnable service or example**.  
-   - Demonstrates **service configuration and execution**.
+architecture approach
 
-2. **`pkg/` folder**  
-   - Contains **reusable packages** for core functionality.  
-   - Standard Go convention for libraries.  
+cache search flight response from external call by combination of (origin + destination + derpature)
+on cache expired (5 minutes (configurable)) fallback to API call search flight
 
-3. **Usage Examples**  
-   - Each service uses reusable logic from `pkg/`.
+
+endpoint search flights:
+request: 
+response:
+
+endpoint filter flights:
+including search request, why? because if the user on page after the search and because ttl expired 5 minutes 
+and the user try to do filter the data will be gone, we dont want to throw back user to do search again, so we need 
+the request if cache expired we fallback to call the api
+
+im combine filter and sort to one endpoint because its same behavior and to reduce code redundancy
+so im making it optional 
+
+request: 
+response:
+
+Failure handling ideally we expect happy flow from other provider, for example return error code, clear error message if it behaves correctly but we still need to prevent
+unhappy flow like only error message, no error code, so im planning to use error code so the client can handle api error flexible.
+
+## Setup
