@@ -2,6 +2,7 @@ package flightclient
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -54,7 +55,7 @@ type fare struct {
 	Class        string `json:"class"`
 }
 
-func (a *BatikAirClient) SearchFlights(req flight.SearchRequest) (*batikAirFlightResponse, error) {
+func (a *BatikAirClient) SearchFlights(ctx context.Context, req flight.SearchRequest) (*batikAirFlightResponse, error) {
 	url := fmt.Sprintf("%s/batikair/v1/flights/search", a.baseURL)
 
 	reqBody, err := json.Marshal(req)

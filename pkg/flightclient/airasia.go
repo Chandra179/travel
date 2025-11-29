@@ -2,6 +2,7 @@ package flightclient
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -48,7 +49,7 @@ type airAsiaFlight struct {
 	} `json:"stops"`
 }
 
-func (a *AirAsiaClient) SearchFlights(req flight.SearchRequest) (*airAsiaFlightResponse, error) {
+func (a *AirAsiaClient) SearchFlights(ctx context.Context, req flight.SearchRequest) (*airAsiaFlightResponse, error) {
 	url := fmt.Sprintf("%s/airasia/v1/flights/search", a.baseURL)
 
 	reqBody, err := json.Marshal(req)

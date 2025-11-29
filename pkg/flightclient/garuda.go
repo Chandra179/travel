@@ -2,6 +2,7 @@ package flightclient
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -68,7 +69,7 @@ type garudaSegment struct {
 	Arrival      garudaLocation `json:"arrival"`
 }
 
-func (a *GarudaClient) SearchFlights(req flight.SearchRequest) (*garudaFlightResponse, error) {
+func (a *GarudaClient) SearchFlights(ctx context.Context, req flight.SearchRequest) (*garudaFlightResponse, error) {
 	url := fmt.Sprintf("%s/garuda/v1/flights/search", a.baseURL)
 
 	reqBody, err := json.Marshal(req)

@@ -37,7 +37,7 @@ func main() {
 	// Cache
 	// ============
 	redisAddr := config.RedisConfig.Host + ":" + config.RedisConfig.Port
-	_ = cache.NewRedisCache(redisAddr)
+	redis := cache.NewRedisCache(redisAddr)
 
 	// ============
 	// External Service
@@ -54,7 +54,7 @@ func main() {
 	// ============
 	// Inernal Service
 	// ============
-	flightSvc := flight.NewFlightService(flightClient)
+	flightSvc := flight.NewService(flightClient, redis, config.CacheTTLMinutes, zlogger)
 	flightHandler := flight.NewFlightHandler(flightSvc)
 
 	// ============

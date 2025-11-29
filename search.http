@@ -1,9 +1,16 @@
-### Search Flights Request
+# POST http://localhost:8080/v1/flights/search
+# Content-Type: application/json
 
-# Your Gin application is running on port 8080 (as per the main.go example).
-# The handler is configured for POST /flights/search.
+# {
+#     "origin": "CGK",
+#     "destination": "DPS",
+#     "departure_date": "2025-12-15",
+#     "return_date": "2025-12-20",
+#     "passengers": 1,
+#     "cabin_class": "economy"
+# }
 
-POST http://localhost:8080/v1/flights/search
+POST http://localhost:8080/v1/flights/filter
 Content-Type: application/json
 
 {
@@ -12,5 +19,11 @@ Content-Type: application/json
     "departure_date": "2025-12-15",
     "return_date": "2025-12-20",
     "passengers": 1,
-    "cabin_class": "economy"
+    "cabin_class": "economy",
+    "filters": {
+        "price_range": {
+            "low": 100,
+            "high": 7000000
+        }
+    }
 }

@@ -1,6 +1,7 @@
 package flightclient
 
 import (
+	"context"
 	"fmt"
 	"math"
 	"strings"
@@ -28,26 +29,26 @@ func NewFlightClient(airAsiaClient *AirAsiaClient, batikAirClient *BatikAirClien
 	}
 }
 
-func (f *FlightManager) SearchFlights(req flight.SearchRequest) (*flight.FlightSearchResponse, error) {
-	airAsiaResp, errAA := f.airAsiaClient.SearchFlights(req)
+func (f *FlightManager) SearchFlights(ctx context.Context, req flight.SearchRequest) (*flight.FlightSearchResponse, error) {
+	airAsiaResp, errAA := f.airAsiaClient.SearchFlights(ctx, req)
 	if errAA != nil {
 		f.logger.Error("failed to fetch airasia", logger.Field{Key: "err", Value: errAA})
 		return nil, errAA
 	}
 
-	batikResp, errBatik := f.batikAirClient.SearchFlights(req)
+	batikResp, errBatik := f.batikAirClient.SearchFlights(ctx, req)
 	if errBatik != nil {
 		f.logger.Error("failed to fetch batik", logger.Field{Key: "err", Value: errBatik})
 		return nil, errBatik
 	}
 
-	garudaResp, errGaruda := f.garudaClient.SearchFlights(req)
+	garudaResp, errGaruda := f.garudaClient.SearchFlights(ctx, req)
 	if errGaruda != nil {
 		f.logger.Error("failed to fetch garuda", logger.Field{Key: "err", Value: errGaruda})
 		return nil, errGaruda
 	}
 
-	lionAirResp, errLionAir := f.lionAirClient.SearchFlights(req)
+	lionAirResp, errLionAir := f.lionAirClient.SearchFlights(ctx, req)
 	if errLionAir != nil {
 		f.logger.Error("failed to fetch lion air", logger.Field{Key: "err", Value: errLionAir})
 		return nil, errLionAir

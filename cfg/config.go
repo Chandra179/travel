@@ -3,6 +3,7 @@ package cfg
 import (
 	"errors"
 	"os"
+	"strconv"
 
 	"github.com/joho/godotenv"
 )
@@ -36,6 +37,7 @@ type Config struct {
 	BatikAirClientConfig BatikAirClientConfig
 	GarudaClientConfig   GarudaIndonesiaClientConfig
 	LionAirClientConfig  LionAirClientConfig
+	CacheTTLMinutes      int
 }
 
 func Load() (*Config, error) {
@@ -55,6 +57,13 @@ func Load() (*Config, error) {
 	batikAirClientBaseUrl := mustEnv("BATIKAIR_CLIENT_BASE_URL", &errs)
 	garudaClientBaseUrl := mustEnv("GARUDA_CLIENT_BASE_URL", &errs)
 	lionAirClientBaseUrl := mustEnv("LIONAIR_CLIENT_BASE_URL", &errs)
+
+	cacheTTLMinutes := mustEnv("CACHE_TTL_MINUTES", &errs)
+	cacheTTLMinutesInt, err := strconv.Atoi(cacheTTLMinutes)
+
+	if err != nil {
+		errs = append(errs, errors.New("conversion failed env: "+"CACHE_TTL_MINUTES"))
+	}
 
 	if len(errs) > 0 {
 		return nil, errors.Join(errs...)
@@ -79,6 +88,7 @@ func Load() (*Config, error) {
 		LionAirClientConfig: LionAirClientConfig{
 			BaseURL: lionAirClientBaseUrl,
 		},
+		CacheTTLMinutes: cacheTTLMinutesInt,
 	}, nil
 }
 

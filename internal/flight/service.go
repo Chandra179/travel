@@ -1,20 +1,33 @@
 package flight
 
 import (
+	"context"
+	"crypto/sha256"
+	"encoding/json"
+	"fmt"
+	"strings"
 	"time"
+	"travel/pkg/cache"
+	"travel/pkg/logger"
 )
 
 type FlightClient interface {
-	SearchFlights(req SearchRequest) (*FlightSearchResponse, error)
+	SearchFlights(ctx context.Context, req SearchRequest) (*FlightSearchResponse, error)
 }
 
 type Service struct {
 	flightClient FlightClient
+	cache        cache.Cache
+	ttl          time.Duration
+	logger       logger.Client
 }
 
-func NewFlightService(flightClient FlightClient) *Service {
+func NewService(flightClient FlightClient, cache cache.Cache, ttlMinutes int, logger logger.Client) *Service {
 	return &Service{
 		flightClient: flightClient,
+		cache:        cache,
+		ttl:          time.Duration(ttlMinutes) * time.Minute,
+		logger:       logger,
 	}
 }
 
@@ -62,6 +75,7 @@ type Metadata struct {
 	ProvidersSucceeded uint32 `json:"providers_succeeded"`
 	ProvidersFailed    uint32 `json:"providers_failed"`
 	SearchTimeMs       uint32 `json:"search_time_ms"`
+	CacheKey           string `json:"cache_key"`
 	CacheHit           bool   `json:"cache_hit"`
 }
 
@@ -90,8 +104,8 @@ type Airline struct {
 type LocationTime struct {
 	Airport   string    `json:"airport"`
 	City      string    `json:"city"`
-	Datetime  time.Time `json:"datetime"`  // Go's time.Time handles the ISO 8601 format and timezone
-	Timestamp int64     `json:"timestamp"` // Unix epoch time (int64)
+	Datetime  time.Time `json:"datetime"`
+	Timestamp int64     `json:"timestamp"`
 }
 
 type Duration struct {
@@ -100,7 +114,7 @@ type Duration struct {
 }
 
 type Price struct {
-	Amount   uint64 `json:"amount"` // Stored in minor units (e.g., IDR or cents)
+	Amount   uint64 `json:"amount"`
 	Currency string `json:"currency"`
 }
 
@@ -109,6 +123,219 @@ type Baggage struct {
 	Checked string `json:"checked"`
 }
 
-func (c *Service) SearchFlights(req SearchRequest) (*FlightSearchResponse, error) {
-	return c.flightClient.SearchFlights(req)
+type FilterOptions struct {
+	PriceRange    *PriceRange    `json:"price_range,omitempty"`
+	MaxStops      *uint32        `json:"max_stops,omitempty"`
+	DepartureTime *DepartureTime `json:"departure_time,omitempty"`
+	ArrivalTime   *ArrivalTime   `json:"arrival_time,omitempty"`
+	Airlines      []string       `json:"airlines,omitempty"`
+	MaxDuration   *uint32        `json:"max_duration,omitempty"`
+}
+
+type FilterRequest struct {
+	SearchRequest
+	Filters FilterOptions `json:"filters"`
+}
+
+// generateCacheKey creates a deterministic key from search parameters
+func (s *Service) generateCacheKey(req SearchRequest) string {
+	key := fmt.Sprintf("flight:%s:%s:%s:%s:%d:%s",
+		req.Origin,
+		req.Destination,
+		req.DepartureDate,
+		req.ReturnDate,
+		req.Passengers,
+		req.CabinClass,
+	)
+
+	hash := sha256.Sum256([]byte(key))
+	return fmt.Sprintf("flight:search:%x", hash[:16])
+}
+
+func (s *Service) SearchFlights(ctx context.Context, req SearchRequest) (*FlightSearchResponse, error) {
+	cacheKey := s.generateCacheKey(req)
+
+	cached, err := s.cache.Get(ctx, cacheKey)
+	if err == nil && cached != "" {
+		s.logger.Info("Cache hit for search", logger.Field{Key: "cache_key", Value: cacheKey})
+
+		var response FlightSearchResponse
+		if err := json.Unmarshal([]byte(cached), &response); err == nil {
+			response.Metadata.CacheHit = true
+			response.Metadata.CacheKey = cacheKey
+			return &response, nil
+		}
+		s.logger.Error("Failed to unmarshal cached data", logger.Field{Key: "err", Value: err})
+	}
+
+	// Cache miss - fetch from providers
+	s.logger.Info("Cache miss for search", logger.Field{Key: "cache_key", Value: cacheKey})
+
+	startTime := time.Now()
+	response, err := s.flightClient.SearchFlights(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+
+	searchTime := time.Since(startTime).Milliseconds()
+	response.Metadata.SearchTimeMs = uint32(searchTime)
+	response.Metadata.CacheHit = false
+	response.Metadata.CacheKey = cacheKey
+
+	responseBytes, err := json.Marshal(response)
+	if err != nil {
+		s.logger.Error("Failed to marshal response", logger.Field{Key: "err", Value: err})
+		return response, nil // Return response even if caching fails
+	}
+
+	if err := s.cache.Set(ctx, cacheKey, string(responseBytes), s.ttl); err != nil {
+		s.logger.Error("Failed to cache response", logger.Field{Key: "err", Value: err})
+	}
+
+	return response, nil
+}
+
+// FilterFlights - Filter with auto-refresh on cache miss
+func (s *Service) FilterFlights(ctx context.Context, req FilterRequest) (*FlightSearchResponse, error) {
+	cacheKey := s.generateCacheKey(req.SearchRequest)
+	cached, err := s.cache.Get(ctx, cacheKey)
+
+	if err == nil && cached != "" {
+		s.logger.Info("Cache hit for filter", logger.Field{Key: "cache_key", Value: cacheKey})
+
+		var response FlightSearchResponse
+		if err := json.Unmarshal([]byte(cached), &response); err == nil {
+			filteredFlights := s.applyFilters(response.Flights, req.Filters)
+
+			return &FlightSearchResponse{
+				SearchCriteria: response.SearchCriteria,
+				Metadata: Metadata{
+					TotalResults:       uint32(len(filteredFlights)),
+					ProvidersQueried:   response.Metadata.ProvidersQueried,
+					ProvidersSucceeded: response.Metadata.ProvidersSucceeded,
+					ProvidersFailed:    response.Metadata.ProvidersFailed,
+					SearchTimeMs:       response.Metadata.SearchTimeMs,
+					CacheKey:           cacheKey,
+					CacheHit:           true,
+				},
+				Flights: filteredFlights,
+			}, nil
+		}
+		s.logger.Error("Failed to unmarshal cached data", logger.Field{Key: "err", Value: err})
+	}
+
+	s.logger.Info("Cache miss for filter - auto-refreshing",
+		logger.Field{Key: "cache_key", Value: cacheKey},
+		logger.Field{Key: "route", Value: fmt.Sprintf("%s->%s", req.Origin, req.Destination)},
+	)
+
+	startTime := time.Now()
+	response, err := s.flightClient.SearchFlights(ctx, req.SearchRequest)
+	if err != nil {
+		return nil, fmt.Errorf("failed to refresh search results: %w", err)
+	}
+
+	searchTime := time.Since(startTime).Milliseconds()
+	response.Metadata.SearchTimeMs = uint32(searchTime)
+	response.Metadata.CacheHit = false
+	response.Metadata.CacheKey = cacheKey
+
+	// Cache in background (non-blocking
+	go func() {
+		bgCtx := context.Background()
+
+		responseBytes, err := json.Marshal(response)
+		if err != nil {
+			s.logger.Error("Failed to marshal response for caching",
+				logger.Field{Key: "err", Value: err},
+				logger.Field{Key: "cache_key", Value: cacheKey},
+			)
+			return
+		}
+
+		if err := s.cache.Set(bgCtx, cacheKey, string(responseBytes), s.ttl); err != nil {
+			s.logger.Error("Failed to cache refreshed results",
+				logger.Field{Key: "err", Value: err},
+				logger.Field{Key: "cache_key", Value: cacheKey},
+			)
+		} else {
+			s.logger.Info("Cached refreshed search results in background",
+				logger.Field{Key: "cache_key", Value: cacheKey},
+				logger.Field{Key: "ttl_minutes", Value: s.ttl.Minutes()},
+			)
+		}
+	}()
+
+	filteredFlights := s.applyFilters(response.Flights, req.Filters)
+
+	return &FlightSearchResponse{
+		SearchCriteria: SearchCriteria{
+			Origin:        req.Origin,
+			Destination:   req.Destination,
+			DepartureDate: req.DepartureDate,
+			Passengers:    req.Passengers,
+			CabinClass:    req.CabinClass,
+		},
+		Metadata: Metadata{
+			TotalResults:       uint32(len(filteredFlights)),
+			ProvidersQueried:   response.Metadata.ProvidersQueried,
+			ProvidersSucceeded: response.Metadata.ProvidersSucceeded,
+			ProvidersFailed:    response.Metadata.ProvidersFailed,
+			SearchTimeMs:       uint32(searchTime),
+			CacheKey:           cacheKey,
+			CacheHit:           false, // Was a cache miss, had to refresh
+		},
+		Flights: filteredFlights,
+	}, nil
+}
+
+func (s *Service) applyFilters(flights []Flight, filters FilterOptions) []Flight {
+	filtered := make([]Flight, 0, len(flights))
+
+	for _, f := range flights {
+		if filters.PriceRange != nil {
+			if f.Price.Amount < filters.PriceRange.Low || f.Price.Amount > filters.PriceRange.High {
+				continue
+			}
+		}
+
+		if filters.MaxStops != nil && f.Stops > *filters.MaxStops {
+			continue
+		}
+
+		if filters.DepartureTime != nil {
+			depTime := f.Departure.Datetime.Format("15:04")
+			if depTime < filters.DepartureTime.From || depTime > filters.DepartureTime.To {
+				continue
+			}
+		}
+
+		if filters.ArrivalTime != nil {
+			arrTime := f.Arrival.Datetime.Format("15:04")
+			if arrTime < filters.ArrivalTime.From || arrTime > filters.ArrivalTime.To {
+				continue
+			}
+		}
+
+		if len(filters.Airlines) > 0 {
+			matched := false
+			for _, airline := range filters.Airlines {
+				if strings.EqualFold(f.Airline.Code, airline) || strings.EqualFold(f.Airline.Name, airline) {
+					matched = true
+					break
+				}
+			}
+			if !matched {
+				continue
+			}
+		}
+
+		if filters.MaxDuration != nil && f.Duration.TotalMinutes > *filters.MaxDuration {
+			continue
+		}
+
+		filtered = append(filtered, f)
+	}
+
+	return filtered
 }
