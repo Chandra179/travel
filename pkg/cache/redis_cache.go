@@ -20,7 +20,7 @@ func NewRedisCache(addr string) Cache {
 }
 
 func (r *redisCache) Set(ctx context.Context, key string, value string, ttl time.Duration) error {
-	return r.client.Set(ctx, key, value, ttl).Err()
+	return r.client.SetNX(ctx, key, value, ttl).Err()
 }
 
 func (r *redisCache) Get(ctx context.Context, key string) (string, error) {

@@ -45,7 +45,7 @@ func (h *FlightHandler) SearchFlightsHandler(c *gin.Context) {
 
 	response, err := h.service.SearchFlights(c.Request.Context(), req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
+		c.JSON(http.StatusBadRequest, gin.H{
 			"error": fmt.Sprintf("Flight search failed: %v", err),
 		})
 		return

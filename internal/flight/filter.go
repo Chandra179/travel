@@ -3,7 +3,6 @@ package flight
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"sort"
 	"strings"
 	"time"
@@ -42,13 +41,15 @@ func (s *Service) FilterFlights(ctx context.Context, req FilterRequest) (*Flight
 				Flights: filteredFlights,
 			}, nil
 		}
-		s.logger.Error("Failed to unmarshal cached data", logger.Field{Key: "err", Value: err})
+		s.logger.Error("FilterFlights", logger.Field{Key: "err_unmarshal", Value: err})
 	}
 
 	// Fetch fresh data from providers (Fallback if cache not found)
 	response, err := s.flightClient.SearchFlights(ctx, req.SearchRequest)
-	if err != nil {
-		return nil, fmt.Errorf("failed to refresh search results: %w", err)
+	if response == nil || err != nil {
+		return &FlightSearchResponse{
+			Flights: []Flight{},
+		}, nil
 	}
 
 	searchTime := time.Since(startTime).Milliseconds()
@@ -57,13 +58,19 @@ func (s *Service) FilterFlights(ctx context.Context, req FilterRequest) (*Flight
 	response.Metadata.CacheKey = cacheKey
 
 	// Cache in background without goroutine overhead
-	responseBytes, err := json.Marshal(response)
 	if err == nil {
 		go func() {
 			bgCtx := context.Background()
+			responseBytes, errM := json.Marshal(response)
+			if errM != nil {
+				s.logger.Error("FilterFlights",
+					logger.Field{Key: "err_marshal", Value: err.Error()},
+					logger.Field{Key: "cache_key", Value: cacheKey},
+				)
+			}
 			if err := s.cache.Set(bgCtx, cacheKey, string(responseBytes), s.ttl); err != nil {
-				s.logger.Error("Failed to cache refreshed results",
-					logger.Field{Key: "err", Value: err},
+				s.logger.Error("FilterFlights",
+					logger.Field{Key: "err_set_cache", Value: err.Error()},
 					logger.Field{Key: "cache_key", Value: cacheKey},
 				)
 			}
@@ -228,11 +235,4 @@ func (s *Service) sortByArrivalTime(flights []Flight, order string) {
 		}
 		return flights[i].Arrival.Timestamp < flights[j].Arrival.Timestamp
 	})
-}
-
-// InvalidateCache manually invalidates cache for a specific route
-func (s *Service) InvalidateCache(ctx context.Context, req SearchRequest) error {
-	cacheKey := s.generateCacheKey(req)
-	s.logger.Info("Invalidating cache", logger.Field{Key: "cache_key", Value: cacheKey})
-	return s.cache.Del(ctx, cacheKey)
 }

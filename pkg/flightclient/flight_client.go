@@ -38,7 +38,8 @@ type providerResult struct {
 }
 
 func (f *FlightManager) SearchFlights(ctx context.Context, req flight.SearchRequest) (*flight.FlightSearchResponse, error) {
-	ctx, cancel := context.WithTimeout(ctx, 15*time.Second)
+	// TODO: Flights context timeout (moved to .env)
+	ctx, cancel := context.WithTimeout(ctx, 7*time.Second)
 	defer cancel()
 
 	resultChan := make(chan providerResult, 4)
@@ -51,7 +52,7 @@ func (f *FlightManager) SearchFlights(ctx context.Context, req flight.SearchRequ
 		resp, err := f.airAsiaClient.SearchFlights(ctx, req)
 		if err != nil {
 			errCode := categorizeError(err)
-			f.logger.Error("failed to fetch airasia", logger.Field{Key: "err", Value: err})
+			f.logger.Error("failed to fetch airasia", logger.Field{Key: "err", Value: err.Error()})
 			resultChan <- providerResult{provider: "AirAsia", err: err, errorCode: errCode}
 			return
 		}
@@ -163,7 +164,6 @@ type FlexibleTime struct {
 func (ft *FlexibleTime) UnmarshalJSON(b []byte) error {
 	s := strings.Trim(string(b), "\"")
 
-	// Try multiple time formats
 	formats := []string{
 		time.RFC3339,               // Standard: 2006-01-02T15:04:05Z07:00 (AirAsia, Garuda)
 		"2006-01-02T15:04:05-0700", // Batik Air: 2025-12-15T07:15:00+0700

@@ -3,7 +3,6 @@ package flight
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"time"
 	"travel/pkg/logger"
 )
@@ -15,18 +14,22 @@ func (s *Service) SearchFlights(ctx context.Context, req SearchRequest) (*Flight
 	// Return immedeatly if response exist in cache
 	if err == nil && cached != "" {
 		var response FlightSearchResponse
-		if err := json.Unmarshal([]byte(cached), &response); err == nil {
+		errUnm := json.Unmarshal([]byte(cached), &response)
+		if errUnm == nil {
 			response.Metadata.CacheHit = true
 			response.Metadata.CacheKey = cacheKey
 			return &response, nil
 		}
-		s.logger.Error("SearchFlights", logger.Field{Key: "err", Value: err})
+		s.logger.Error("SearchFlights", logger.Field{Key: "err_unmarshal", Value: errUnm.Error()})
 	}
 
+	// Fallback to api call
 	startTime := time.Now()
 	response, err := s.flightClient.SearchFlights(ctx, req)
 	if response == nil || len(response.Flights) == 0 || err != nil {
-		return nil, errors.New("something went wrong, try again later")
+		return &FlightSearchResponse{
+			Flights: []Flight{},
+		}, nil
 	}
 
 	searchTime := time.Since(startTime).Milliseconds()
@@ -36,12 +39,12 @@ func (s *Service) SearchFlights(ctx context.Context, req SearchRequest) (*Flight
 
 	responseBytes, err := json.Marshal(response)
 	if err != nil {
-		s.logger.Error("SearchFlights", logger.Field{Key: "err_marshal", Value: err})
+		s.logger.Error("SearchFlights", logger.Field{Key: "err_marshal", Value: err.Error()})
 		return response, nil // Return response even if caching fails
 	}
 
 	if err := s.cache.Set(ctx, cacheKey, string(responseBytes), s.ttl); err != nil {
-		s.logger.Error("SearchFlights", logger.Field{Key: "err_set_cache", Value: err})
+		s.logger.Error("SearchFlights", logger.Field{Key: "err_set_cache", Value: err.Error()})
 	}
 
 	return response, nil
