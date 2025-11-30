@@ -58,7 +58,7 @@ func main() {
 	// ============
 	// Inernal Service
 	// ============
-	flightSvc := flight.NewService(flightClient, redis, config.CacheTTLMinutes, zlogger)
+	flightSvc := flight.NewService(flightClient, redis, config.CacheTTLSeconds, zlogger)
 	flightHandler := flight.NewFlightHandler(flightSvc)
 
 	// ============

@@ -37,7 +37,7 @@ type Config struct {
 	BatikAirClientConfig BatikAirClientConfig
 	GarudaClientConfig   GarudaIndonesiaClientConfig
 	LionAirClientConfig  LionAirClientConfig
-	CacheTTLMinutes      int
+	CacheTTLSeconds      int
 }
 
 func Load() (*Config, error) {
@@ -56,11 +56,11 @@ func Load() (*Config, error) {
 	garudaClientBaseUrl := mustEnv("GARUDA_CLIENT_BASE_URL", &errs)
 	lionAirClientBaseUrl := mustEnv("LIONAIR_CLIENT_BASE_URL", &errs)
 
-	cacheTTLMinutes := mustEnv("CACHE_TTL_MINUTES", &errs)
-	cacheTTLMinutesInt, err := strconv.Atoi(cacheTTLMinutes)
+	cacheTTLInSeconds := mustEnv("CACHE_TTL_SECONDS", &errs)
+	cacheTTLSecondsInt, err := strconv.Atoi(cacheTTLInSeconds)
 
 	if err != nil {
-		errs = append(errs, errors.New("conversion failed env: "+"CACHE_TTL_MINUTES"))
+		errs = append(errs, errors.New("conversion failed env: "+"CACHE_TTL_SECONDS"))
 	}
 
 	if len(errs) > 0 {
@@ -86,7 +86,7 @@ func Load() (*Config, error) {
 		LionAirClientConfig: LionAirClientConfig{
 			BaseURL: lionAirClientBaseUrl,
 		},
-		CacheTTLMinutes: cacheTTLMinutesInt,
+		CacheTTLSeconds: cacheTTLSecondsInt,
 	}, nil
 }
 

@@ -35,7 +35,6 @@ func (h *FlightHandler) RegisterRoutes(router *gin.Engine) {
 // @Router       /v1/flights/search [post]
 func (h *FlightHandler) SearchFlightsHandler(c *gin.Context) {
 	var req SearchRequest
-
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": fmt.Sprintf("Invalid request format: %v", err),

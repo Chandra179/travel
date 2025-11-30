@@ -104,7 +104,7 @@ cacheKey := fmt.Sprintf("flight:search:%x", hash[:16])
 
 ### 4. TTL-Based Cache Expiration
 
-**Decision**: Use simple TTL (Time-To-Live) with configurable duration (default: 5 minutes).
+**Decision**: Use simple TTL (Time-To-Live) with configurable duration (default: 30 seconds).
 
 **Reason**:
 - Flight prices and availability change rapidly
