@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 	"time"
@@ -69,7 +70,8 @@ func main() {
 	flightHandler.RegisterRoutes(r)
 	initSwagger(r)
 
-	if err := r.Run(":8080"); err != nil {
+	addr := fmt.Sprintf(":%s", config.AppPort)
+	if err := r.Run(addr); err != nil {
 		log.Fatalf("Failed to start server: %v", err)
 	}
 }

@@ -31,6 +31,7 @@ type LionAirClientConfig struct {
 
 type Config struct {
 	AppEnv               string
+	AppPort              string
 	RedisConfig          RedisConfig
 	AirAsiaClientConfig  AirAsiaClientConfig
 	BatikAirClientConfig BatikAirClientConfig
@@ -48,6 +49,7 @@ func Load() (*Config, error) {
 	}
 
 	appEnv := mustEnv("APP_ENV", &errs)
+	appPort := mustEnv("APP_PORT", &errs)
 	redisHost := mustEnv("REDIS_HOST", &errs)
 	redistPort := mustEnv("REDIS_PORT", &errs)
 
@@ -68,7 +70,8 @@ func Load() (*Config, error) {
 	}
 
 	return &Config{
-		AppEnv: appEnv,
+		AppEnv:  appEnv,
+		AppPort: appPort,
 		RedisConfig: RedisConfig{
 			Host: redisHost,
 			Port: redistPort,

@@ -14,12 +14,12 @@ run:
 .PHONY: dev-setup
 dev-setup:
 	@chmod +x dev-setup.sh
-	@./dev-setup.sh
+	@./dev-setup.sh $(filter-out $@,$(MAKECMDGOALS))
 
 .PHONY: dev-stop
 dev-stop:
 	@chmod +x dev-stop.sh
-	@./dev-stop.sh
+	@./dev-stop.sh $(filter-out $@,$(MAKECMDGOALS))
 
 .PHONY: dev-restart
 dev-restart: dev-stop dev-setup
@@ -65,12 +65,18 @@ help:
 	@echo "  make build         - Build and start with docker-compose"
 	@echo ""
 	@echo "Development commands:"
-	@echo "  make dev-setup     - Setup and start all services (Redis, Mock, App)"
-	@echo "  make dev-stop      - Stop all services"
-	@echo "  make dev-restart   - Restart all services"
+	@echo "  make dev-setup [APP_PORT] [MOCK_PORT] - Setup and start all services"
+	@echo "                                          Example: make dev-setup 8080 8081"
+	@echo "                                          Default: 8080 8081"
+	@echo "  make dev-stop [APP_PORT] [MOCK_PORT]  - Stop all services"
+	@echo "  make dev-restart [APP_PORT] [MOCK_PORT] - Restart all services"
 	@echo "  make dev-status    - Check status of all services"
 	@echo "  make dev-logs      - Show main application logs"
 	@echo "  make dev-logs-mock - Show mock server logs"
 	@echo "  make dev-logs-redis- Show Redis logs"
 	@echo "  make dev-clean     - Stop services and clean up all files"
 	@echo ""
+
+# Allow passing arguments to make targets
+%:
+	@:

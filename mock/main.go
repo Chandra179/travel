@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 )
 
 type SearchRequest struct {
@@ -16,13 +17,22 @@ type SearchRequest struct {
 }
 
 func main() {
+	// Default port
+	port := "8081"
+
+	// Check if port is provided as command line argument
+	if len(os.Args) > 1 {
+		port = os.Args[1]
+	}
+
 	http.HandleFunc("/airasia/v1/flights/search", AirAsiaSearchHandler)
 	http.HandleFunc("/batikair/v1/flights/search", BatikSearchHandler)
 	http.HandleFunc("/garuda/v1/flights/search", GarudaSearchHandler)
 	http.HandleFunc("/lionair/v1/flights/search", LionAirSearchHandler)
 
-	fmt.Println("Go Mock Server running on port 8081...")
-	if err := http.ListenAndServe(":8081", nil); err != nil {
+	addr := fmt.Sprintf(":%s", port)
+	fmt.Printf("Go Mock Server running on port %s...\n", port)
+	if err := http.ListenAndServe(addr, nil); err != nil {
 		log.Fatal(err)
 	}
 }

@@ -26,6 +26,45 @@ command_exists() {
     command -v "$1" >/dev/null 2>&1
 }
 
+# Function to check if port is valid
+is_valid_port() {
+    local port=$1
+    if [[ "$port" =~ ^[0-9]+$ ]] && [ "$port" -ge 1 ] && [ "$port" -le 65535 ]; then
+        return 0
+    else
+        return 1
+    fi
+}
+
+# Parse port arguments
+APP_PORT=${1:-8080}
+MOCK_PORT=${2:-8081}
+
+# Validate port arguments
+if [ $# -eq 1 ]; then
+    print_error "Both APP_PORT and MOCK_PORT must be provided, or none at all"
+    print_info "Usage: $0 [APP_PORT MOCK_PORT]"
+    print_info "Example: $0 8080 8081"
+    exit 1
+fi
+
+if ! is_valid_port "$APP_PORT"; then
+    print_error "Invalid APP_PORT: $APP_PORT (must be between 1-65535)"
+    exit 1
+fi
+
+if ! is_valid_port "$MOCK_PORT"; then
+    print_error "Invalid MOCK_PORT: $MOCK_PORT (must be between 1-65535)"
+    exit 1
+fi
+
+if [ "$APP_PORT" -eq "$MOCK_PORT" ]; then
+    print_error "APP_PORT and MOCK_PORT cannot be the same: $APP_PORT"
+    exit 1
+fi
+
+print_info "Using ports - APP: $APP_PORT, MOCK: $MOCK_PORT"
+
 # Check prerequisites
 print_info "Checking prerequisites..."
 if ! command_exists go; then
@@ -61,8 +100,19 @@ if [ ! -f .env ]; then
     cp .env.example .env
     print_info ".env file created successfully"
 else
-    print_info ".env file already exists, skipping..."
+    print_info ".env file already exists"
 fi
+
+# Update APP_PORT in .env file
+print_info "Updating APP_PORT in .env file..."
+if grep -q "^APP_PORT=" .env; then
+    # Update existing APP_PORT
+    sed -i.bak "s/^APP_PORT=.*/APP_PORT=$APP_PORT/" .env && rm -f .env.bak
+else
+    # Add APP_PORT if it doesn't exist
+    echo "APP_PORT=$APP_PORT" >> .env
+fi
+print_info "APP_PORT set to $APP_PORT in .env"
 
 # Check and install dependencies
 if [ ! -d "vendor" ]; then
@@ -77,7 +127,13 @@ fi
 # Stop any running services
 print_info "Stopping any existing services..."
 pkill -f "go run ./cmd/travel/main.go" 2>/dev/null || true
-pkill -f "go run ./mock" 2>/dev/null || true
+pkill -f "go run.*mock" 2>/dev/null || true
+
+# Kill processes on the ports we're about to use
+print_info "Checking for processes on ports $APP_PORT and $MOCK_PORT..."
+lsof -ti:$APP_PORT | xargs kill -9 2>/dev/null || true
+lsof -ti:$MOCK_PORT | xargs kill -9 2>/dev/null || true
+
 $DOCKER_COMPOSE_CMD down 2>/dev/null || true
 
 # Start Redis
@@ -93,9 +149,9 @@ fi
 print_info "Redis is running"
 
 # Start Mock Server
-print_info "Starting Mock Server on port 8081..."
+print_info "Starting Mock Server on port $MOCK_PORT..."
 cd mock
-nohup go run . > ../mock-server.log 2>&1 &
+nohup go run . $MOCK_PORT > ../mock-server.log 2>&1 &
 cd ..
 sleep 2  # Wait for mock server to start
 
@@ -108,7 +164,7 @@ fi
 print_info "Mock Server is running"
 
 # Start Main Application
-print_info "Starting Main Application on port 8080..."
+print_info "Starting Main Application on port $APP_PORT..."
 nohup go run ./cmd/travel/main.go > app.log 2>&1 &
 sleep 2  # Wait for app to start
 
@@ -131,15 +187,15 @@ print_info "=================================="
 echo ""
 print_info "Services:"
 print_info "  - Redis:            localhost:6379"
-print_info "  - Mock Server:      http://localhost:8081"
-print_info "  - Main Application: http://localhost:8080"
-print_info "  - Swagger UI:       http://localhost:8080/swagger/index.html"
-print_info "  - API Docs:         http://localhost:8080/docs"
+print_info "  - Mock Server:      http://localhost:$MOCK_PORT"
+print_info "  - Main Application: http://localhost:$APP_PORT"
+print_info "  - Swagger UI:       http://localhost:$APP_PORT/swagger/index.html"
+print_info "  - API Docs:         http://localhost:$APP_PORT/docs"
 echo ""
 print_info "Logs:"
 print_info "  - Main App:    tail -f app.log"
 print_info "  - Mock Server: tail -f mock-server.log"
 print_info "  - Redis:       docker logs -f flight-redis"
 echo ""
-print_info "To stop all services, run: make dev-stop"
+print_info "To stop all services, run: make dev-stop $APP_PORT $MOCK_PORT"
 echo ""
