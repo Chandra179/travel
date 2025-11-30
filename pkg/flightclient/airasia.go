@@ -101,7 +101,7 @@ func (f *FlightManager) mapAirAsiaFlights(resp *airAsiaFlightResponse) []flight.
 		}
 
 		domainFlight := flight.Flight{
-			ID:       aaFlight.FlightCode,
+			ID:       aaFlight.FlightCode + "_" + aaFlight.Airline,
 			Provider: "AirAsia",
 			Airline: flight.Airline{
 				Name: aaFlight.Airline,

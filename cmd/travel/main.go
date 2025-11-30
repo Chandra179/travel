@@ -21,7 +21,6 @@ import (
 // @title           Travel Flight API
 // @version         1.0
 // @description     API service for searching and filtering flights.
-// @host            localhost:8080
 // @BasePath        /
 // @schemes         http
 func main() {

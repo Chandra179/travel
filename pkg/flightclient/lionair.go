@@ -164,7 +164,7 @@ func (f *FlightManager) mapLionAirFlights(resp *LionAirFlightResponse) ([]flight
 		}
 
 		domainFlight := flight.Flight{
-			ID:       lFlight.ID,
+			ID:       lFlight.ID + "_" + lFlight.Carrier.Name,
 			Provider: lFlight.Carrier.Name,
 			Airline: flight.Airline{
 				Name: lFlight.Carrier.Name,

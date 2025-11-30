@@ -43,6 +43,7 @@ type Config struct {
 func Load() (*Config, error) {
 	var errs []error
 
+	// Ignore read .env if it not exist. (read from docker-compose)
 	_ = godotenv.Load()
 
 	appEnv := mustEnv("APP_ENV", &errs)

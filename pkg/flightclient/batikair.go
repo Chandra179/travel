@@ -95,7 +95,7 @@ func (f *FlightManager) mapBatikFlights(resp *batikAirFlightResponse) []flight.F
 		totalMinutes, formattedDuration := f.parseBatikDuration(btFlight.TravelTime)
 
 		domainFlight := flight.Flight{
-			ID:       btFlight.FlightNumber,
+			ID:       btFlight.FlightNumber + "_" + btFlight.AirlineName,
 			Provider: btFlight.AirlineName,
 			Airline: flight.Airline{
 				Name: btFlight.AirlineName,
