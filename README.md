@@ -39,104 +39,68 @@ This service aggregates flight search results from multiple airline providers (A
 ## Key Design Decisions
 
 ### 1. Concurrent Provider Queries
+Query all 4 airline providers simultaneously using goroutines.
 
-**Decision**: Query all 4 airline providers simultaneously using goroutines.
-
-**Reason**:
-- Minimizes total search time (limited by slowest provider, not sum of all)
-- Each provider has 5-second timeout to prevent one slow API from blocking others
+**Reason**: Minimizes total search time (limited by slowest provider, not sum of all)
 
 **Trade-off**: Higher resource usage (4 concurrent HTTP connections per search)
 
-### 2. Partial Results Strategy
 
-**Decision**: Return results even if some providers fail (timeout/error).
+### 2. Partial Results Strategy
+Return results even if some providers fail (timeout/error).
 
 **Reason**:
-- Providers are independent companies; one failure shouldn't block the entire search
+- Assuming providers are independent companies; one failure shouldn't block the entire search
 - Users still get value from available results
-- Metadata includes `providers_failed` and `provider_errors` for transparency
-
-**Example Response**:
-```json
-{
-  "metadata": {
-    "total_results": 45,
-    "providers_queried": 4,
-    "providers_succeeded": 3,
-    "providers_failed": 1,
-    "provider_errors": [
-      {
-        "provider": "Lion Air",
-        "code": "TIMEOUT"
-      }
-    ]
-  },
-  "flights": [...]
-}
-```
 
 **Trade-off**: Users may not see all available flights if providers fail.
 
 ### 3. Cache Key Strategy
-
-**Decision**: Cache results based on `(origin, destination, departure_date, passengers, cabin_class)`.
+Cache results based on `(origin, destination, departure_date, passengers, cabin_class)`.
 
 **Reason**:
 - Airline APIs return different results for different passenger counts and cabin classes
 - Each unique search combination must have its own cache entry
 - Ensures users always get accurate prices and availability
 
-**Cache Key Format**:
-```go
-key := fmt.Sprintf("flight:%s:%s:%s:%d:%s",
-    req.Origin,
-    req.Destination,
-    req.DepartureDate,
-    req.Passengers,
-    req.CabinClass,
-)
-hash := sha256.Sum256([]byte(key))
-cacheKey := fmt.Sprintf("flight:search:%x", hash[:16])
-```
-
 **Trade-off**: Less cache reuse (more unique keys), but ensures data correctness.
 
-### 4. TTL-Based Cache Expiration
+### 4. Filter/Sort on Cached Data
 
-**Decision**: Use simple TTL (Time-To-Live) with configurable duration (default: 30 seconds).
+#### A. Filtering
+- **Pre-computation:** Parse time strings (e.g., `"14:00"`) into `seconds-from-midnight` integers once per request.  
+- **FilterContext:** Build a `FilterContext` struct that contains all precomputed values and derived state used by predicates.  
+- **Short-circuiting / Fail-fast:** Iterate results and apply predicates in an order that fails fast (cheap checks like Price first). If a flight fails a predicate, skip remaining checks for that item.
 
-**Reason**:
-- Flight prices and availability change rapidly
-- Simple to implement and reason about
-- Configurable via environment variable for different environments
+#### B. Sorting (Stable Sort)
+Use Go's `sort.SliceStable` instead of `sort.Slice` because stable sort preserves relative order for equal-key elements (prevents flights with equal price from "jumping" positions on refresh).
 
-**Trade-off**: Stale data possible within TTL window. No active invalidation mechanism.
+#### C. "Best Value" Scoring Algorithm
+The "Best Value" sort computes score per flight using **Weighted Normalization** to bring disparate metrics onto a `0.0 .. 1.0` scale.
 
-### 5. Filter/Sort on Cached Data
+**Normalization (per metric):**
 
-**Decision**: Separate `/search` and `/filter` endpoints. Filter operates on cached results.
+```
+NormalizedScore = 1.0 - (Value - Min) / (Max - Min)
+```
 
-**User Flow**:
-1. User searches flights → `/v1/flights/search`
-   - Queries all providers concurrently
-   - Caches raw results
-   - Returns all flights
-2. User applies filters → `/v1/flights/filter`
-   - Checks cache for original search
-   - If **cache hit**: Filters in-memory (instant response)
-   - If **cache miss**: Falls back to `/search` logic
+- Result: the best value (cheapest / fastest) → `1.0`; worst → `0.0`.
 
-**Reason**:
-- Instant filtering for users (no additional API calls)
-- Supports multiple filter/sort operations on same search
-- Assumes maximum ~1000 flights per search (in-memory filtering is fast)
+**Weights (example):**
+- Price: `0.45`  
+- Duration: `0.35`  
+- Stops: `0.20`
 
-**Trade-off**: 
-- Cache miss forces slow re-search (bad UX if cache expires, so fallback to search call API)
-- `FilterRequest` must include original `SearchRequest` parameters for fallback
+**Final score formula:**
 
-### 6. Flexible Time Parsing
+```text
+FinalScore = (0.45 * NormPrice) + (0.35 * NormDuration) + (0.20 * NormStops)
+```
+
+**Ranking:** Sort results by `FinalScore` **descending**.
+
+
+### 5. Flexible Time Parsing
 
 **Decision**: Handle multiple time formats from different providers in the client layer.
 
