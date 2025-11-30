@@ -1,0 +1,26 @@
+# Build stage
+FROM golang:1.25.4-alpine AS builder
+
+WORKDIR /app
+
+# Copy go mod files (if mock has dependencies)
+COPY mock/ ./
+
+# Build the mock server
+RUN CGO_ENABLED=0 GOOS=linux go build -o mock-server .
+
+# Run stage
+FROM alpine:latest
+
+WORKDIR /app
+
+RUN apk add --no-cache curl
+
+# Copy binary from builder
+COPY --from=builder /app/mock-server .
+
+# Expose port (will be overridden by docker-compose)
+EXPOSE 8081
+
+# Run the mock server
+CMD ["./mock-server"]

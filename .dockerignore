@@ -1,0 +1,49 @@
+# Git
+.git
+.gitignore
+
+# Environment
+.env
+.env.example
+
+# Logs
+*.log
+app.log
+mock-server.log
+
+# Build artifacts
+vendor/
+*.exe
+*.test
+*.out
+main
+mock-server
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker
+Dockerfile
+Dockerfile.mock
+docker-compose.yml
+.dockerignore
+
+# PID files
+.app.pid
+.mock.pid
+
+# Scripts
+dev-setup.sh
+dev-stop.sh
+
+# Documentation
+README.md
+docs/

@@ -8,7 +8,66 @@ services:
       - "6379:6379"
     volumes:
       - redis-data:/data
+    networks:
+      - flight-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  mock-server:
+    build:
+      context: .
+      dockerfile: Dockerfile.mock
+    container_name: flight-mock-server
+    ports:
+      - "${MOCK_PORT:-8081}:8081"
+    networks:
+      - flight-network
+    environment:
+      - PORT=8081
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: flight-app
+    ports:
+      - "${APP_PORT:-8080}:8080"
+    networks:
+      - flight-network
+    environment:
+      - APP_PORT=8080
+      - APP_ENV=${APP_ENV:-development}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - CACHE_TTL_MINUTES=${CACHE_TTL_MINUTES:-60}
+      - AIRASIA_CLIENT_BASE_URL=http://mock-server:8081
+      - BATIKAIR_CLIENT_BASE_URL=http://mock-server:8081
+      - GARUDA_CLIENT_BASE_URL=http://mock-server:8081
+      - LIONAIR_CLIENT_BASE_URL=http://mock-server:8081
+    depends_on:
+      redis:
+        condition: service_healthy
+      mock-server:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8080/swagger/doc.json"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+
+networks:
+  flight-network:
+    driver: bridge
 
 volumes:
   redis-data:
-  mock:

@@ -43,10 +43,7 @@ type Config struct {
 func Load() (*Config, error) {
 	var errs []error
 
-	err := godotenv.Load()
-	if err != nil {
-		return nil, errors.New("failed load cfg: " + err.Error())
-	}
+	_ = godotenv.Load()
 
 	appEnv := mustEnv("APP_ENV", &errs)
 	appPort := mustEnv("APP_PORT", &errs)

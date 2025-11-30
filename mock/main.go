@@ -17,13 +17,12 @@ type SearchRequest struct {
 }
 
 func main() {
-	// Default port
 	port := "8081"
 
-	// Check if port is provided as command line argument
 	if len(os.Args) > 1 {
 		port = os.Args[1]
 	}
+	http.HandleFunc("/health", HealthCheckHandler)
 
 	http.HandleFunc("/airasia/v1/flights/search", AirAsiaSearchHandler)
 	http.HandleFunc("/batikair/v1/flights/search", BatikSearchHandler)
@@ -35,4 +34,9 @@ func main() {
 	if err := http.ListenAndServe(addr, nil); err != nil {
 		log.Fatal(err)
 	}
+}
+
+func HealthCheckHandler(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("OK"))
 }
