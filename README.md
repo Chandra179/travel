@@ -16,7 +16,7 @@ A Go-based flight aggregation service that searches multiple airline providers c
 Prerequisites : Need Docker to be installed
 
 ```bash
-git clone <repository-url>
+git clone git@github.com:Chandra179/travel.git
 cd travel
 
 # automates checking for docker installation, copying .env.example, build docker image, start server, detailed on (dev-setup.sh)
