@@ -39,7 +39,7 @@ type providerResult struct {
 
 func (f *FlightManager) SearchFlights(ctx context.Context, req flight.SearchRequest) (*flight.FlightSearchResponse, error) {
 	// TODO: Flights context timeout (moved to .env)
-	ctx, cancel := context.WithTimeout(ctx, 7*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 
 	resultChan := make(chan providerResult, 4)

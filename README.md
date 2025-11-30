@@ -12,7 +12,7 @@ A Go-based flight aggregation service that searches multiple airline providers c
 - [Installation](#installation)
 - [Configuration](#configuration)
 
-## Running
+## Running DEV
 Prerequisites : Need Docker to be installed
 
 ```bash
