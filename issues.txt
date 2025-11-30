@@ -1,3 +1,1 @@
 price low cannot be higher than price high
-id = code + provider
-
