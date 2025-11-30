@@ -3,6 +3,7 @@ package flight
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"time"
 	"travel/pkg/logger"
 )
@@ -24,8 +25,8 @@ func (s *Service) SearchFlights(ctx context.Context, req SearchRequest) (*Flight
 
 	startTime := time.Now()
 	response, err := s.flightClient.SearchFlights(ctx, req)
-	if err != nil {
-		return nil, err
+	if response == nil || len(response.Flights) == 0 || err != nil {
+		return nil, errors.New("something went wrong, try again later")
 	}
 
 	searchTime := time.Since(startTime).Milliseconds()
