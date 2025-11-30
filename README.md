@@ -23,8 +23,11 @@ cd travel
 make dev-setup
 ```
 
-## Overview
+## Testing
+- install vscode extenstions Rest client Huachao Mao, and executes the test on files `search.http`
+- or using curl using `make test` the curl files in `test.sh` make sure to adjust the PORT first
 
+## Overview
 This service aggregates flight search results from multiple airline providers (AirAsia, Batik Air, Garuda Indonesia, Lion Air) and provides:
 
 - **Concurrent API calls** to multiple providers for fast results

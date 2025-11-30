@@ -10,7 +10,13 @@ build:
 run:
 	go run cmd/travel/main.go
 
+
 # Development environment setup and management
+.PHONY: test
+test:
+	@echo "Running test..."
+	bash ./test.sh
+
 .PHONY: dev-setup
 dev-setup:
 	@chmod +x dev-setup.sh

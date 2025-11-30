@@ -118,7 +118,7 @@ func (f *FlightManager) mapGarudaFlights(resp *garudaFlightResponse) []flight.Fl
 		baggageChecked := fmt.Sprintf("Checked: %d", gFlight.Baggage.Checked)
 
 		domainFlight := flight.Flight{
-			ID:       gFlight.FlightID + "_" + gFlight.Airline,
+			ID:       gFlight.FlightID + "_" + "GarudaIndonesia",
 			Provider: gFlight.Airline,
 			Airline: flight.Airline{
 				Name: gFlight.Airline,
