@@ -54,7 +54,27 @@ flexible datetime handling
 
 i choose mapping response manually for clarity and better control, if there is an error it obvious where its coming from
 
-## Setup
+## Optional setup
+```
+go install github.com/swaggo/swag/cmd/swag@latest
+nano ~/.bashrc  # Or ~/.zshrc if you use zsh
+export GOPATH=$HOME/go
+export PATH=$PATH:$GOPATH/bin
+source ~/.bashrc # Or source ~/.zshrc
 
-## Improvement
-using linter, import & field alignment, 
+$(go env GOPATH)/bin/swag init -g cmd/travel/main.go -d ./ -o cmd/travel/docs --parseDependency --parseInternal
+```
+
+## Mock setup
+cd to mock
+and run go run .
+dont run using dir relative path like this: go run mock/main.go, it will not work
+
+## Running
+in root direcotry, do
+make run 
+
+swagger: http://localhost:8080/swagger/index.html
+
+## Testing
+test files at search.http

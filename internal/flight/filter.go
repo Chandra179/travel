@@ -29,7 +29,6 @@ func (s *Service) FilterFlights(ctx context.Context, req FilterRequest) (*Flight
 			}
 
 			return &FlightSearchResponse{
-				SearchCriteria: response.SearchCriteria,
 				Metadata: Metadata{
 					TotalResults:       uint32(len(filteredFlights)),
 					ProvidersQueried:   response.Metadata.ProvidersQueried,
@@ -80,13 +79,6 @@ func (s *Service) FilterFlights(ctx context.Context, req FilterRequest) (*Flight
 	}
 
 	return &FlightSearchResponse{
-		SearchCriteria: SearchCriteria{
-			Origin:        req.Origin,
-			Destination:   req.Destination,
-			DepartureDate: req.DepartureDate,
-			Passengers:    req.Passengers,
-			CabinClass:    req.CabinClass,
-		},
 		Metadata: Metadata{
 			TotalResults:       uint32(len(filteredFlights)),
 			ProvidersQueried:   response.Metadata.ProvidersQueried,

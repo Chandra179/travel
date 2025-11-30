@@ -64,7 +64,7 @@ func (f *FlightManager) SearchFlights(ctx context.Context, req flight.SearchRequ
 		resp, err := f.batikAirClient.SearchFlights(ctx, req)
 		if err != nil {
 			errCode := categorizeError(err)
-			f.logger.Error("failed to fetch batik", logger.Field{Key: "err", Value: err})
+			f.logger.Error("failed to fetch batik", logger.Field{Key: "err", Value: err.Error()})
 			resultChan <- providerResult{provider: "Batik Air", err: err, errorCode: errCode}
 			return
 		}
@@ -77,7 +77,7 @@ func (f *FlightManager) SearchFlights(ctx context.Context, req flight.SearchRequ
 		resp, err := f.garudaClient.SearchFlights(ctx, req)
 		if err != nil {
 			errCode := categorizeError(err)
-			f.logger.Error("failed to fetch garuda", logger.Field{Key: "err", Value: err})
+			f.logger.Error("failed to fetch garuda", logger.Field{Key: "err", Value: err.Error()})
 			resultChan <- providerResult{provider: "Garuda Indonesia", err: err, errorCode: errCode}
 			return
 		}
@@ -90,14 +90,14 @@ func (f *FlightManager) SearchFlights(ctx context.Context, req flight.SearchRequ
 		resp, err := f.lionAirClient.SearchFlights(ctx, req)
 		if err != nil {
 			errCode := categorizeError(err)
-			f.logger.Error("failed to fetch lion air", logger.Field{Key: "err", Value: err})
+			f.logger.Error("failed to fetch lion air", logger.Field{Key: "err", Value: err.Error()})
 			resultChan <- providerResult{provider: "Lion Air", err: err, errorCode: errCode}
 			return
 		}
 		flights, err := f.mapLionAirFlights(resp)
 		if err != nil {
 			errCode := categorizeError(err)
-			f.logger.Error("failed to map lion air flights", logger.Field{Key: "err", Value: err})
+			f.logger.Error("failed to map lion air flights", logger.Field{Key: "err", Value: err.Error()})
 			resultChan <- providerResult{provider: "Lion Air", err: err, errorCode: errCode}
 			return
 		}
@@ -124,7 +124,6 @@ func (f *FlightManager) SearchFlights(ctx context.Context, req flight.SearchRequ
 			providerErrors = append(providerErrors, flight.ProviderError{
 				Provider: result.provider,
 				Code:     result.errorCode,
-				Message:  result.err.Error(),
 			})
 		}
 	}

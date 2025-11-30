@@ -10,15 +10,19 @@ import (
 	"travel/pkg/flightclient"
 	"travel/pkg/logger"
 
-	_ "travel/api" // swagger docs
+	_ "travel/cmd/travel/docs" // swagger docs
 
 	"github.com/gin-gonic/gin"
-	_ "github.com/golang-migrate/migrate/v4/database/postgres"
-	_ "github.com/golang-migrate/migrate/v4/source/file"
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
 )
 
+// @title           Travel Flight API
+// @version         1.0
+// @description     API service for searching and filtering flights.
+// @host            localhost:8080
+// @BasePath        /
+// @schemes         http
 func main() {
 	// ============
 	// config

@@ -9,9 +9,8 @@ import (
 )
 
 type RedisConfig struct {
-	Host     string
-	Port     string
-	Password string
+	Host string
+	Port string
 }
 
 type AirAsiaClientConfig struct {
@@ -51,7 +50,6 @@ func Load() (*Config, error) {
 	appEnv := mustEnv("APP_ENV", &errs)
 	redisHost := mustEnv("REDIS_HOST", &errs)
 	redistPort := mustEnv("REDIS_PORT", &errs)
-	redisPassword := mustEnv("REDIS_PASSWORD", &errs)
 
 	airAsiaClientBaseUrl := mustEnv("AIRASIA_CLIENT_BASE_URL", &errs)
 	batikAirClientBaseUrl := mustEnv("BATIKAIR_CLIENT_BASE_URL", &errs)
@@ -72,9 +70,8 @@ func Load() (*Config, error) {
 	return &Config{
 		AppEnv: appEnv,
 		RedisConfig: RedisConfig{
-			Host:     redisHost,
-			Port:     redistPort,
-			Password: redisPassword,
+			Host: redisHost,
+			Port: redistPort,
 		},
 		AirAsiaClientConfig: AirAsiaClientConfig{
 			BaseURL: airAsiaClientBaseUrl,

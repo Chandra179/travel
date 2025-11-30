@@ -73,9 +73,8 @@ type SearchRequest struct {
 }
 
 type FlightSearchResponse struct {
-	SearchCriteria SearchCriteria `json:"search_criteria"`
-	Metadata       Metadata       `json:"metadata"`
-	Flights        []Flight       `json:"flights"`
+	Metadata Metadata `json:"metadata"`
+	Flights  []Flight `json:"flights"`
 }
 
 type SearchCriteria struct {
@@ -89,7 +88,6 @@ type SearchCriteria struct {
 type ProviderError struct {
 	Provider string    `json:"provider"`
 	Code     ErrorCode `json:"code"`
-	Message  string    `json:"message"`
 }
 
 type Metadata struct {
