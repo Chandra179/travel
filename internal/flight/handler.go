@@ -1,6 +1,7 @@
 package flight
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 
@@ -22,31 +23,19 @@ func (h *FlightHandler) RegisterRoutes(router *gin.Engine) {
 	router.POST("/v1/flights/filter", h.FilterFlightsHandler)
 }
 
-// SearchFlightsHandler godoc
-// @Summary      Search for flights
-// @Description  Search flights based on origin, destination, and dates
-// @Tags         flights
-// @Accept       json
-// @Produce      json
-// @Param        request body SearchRequest true "Flight Search Criteria"
-// @Success      200 {object} map[string]interface{} "Replace this with your actual Response Struct"
-// @Failure      400 {object} map[string]string
-// @Failure      500 {object} map[string]string
-// @Router       /v1/flights/search [post]
 func (h *FlightHandler) SearchFlightsHandler(c *gin.Context) {
 	var req SearchRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"error": fmt.Sprintf("Invalid request format: %v", err),
+			"error": "Invalid JSON body",
+			"code":  ErrorCodeValidation,
 		})
 		return
 	}
 
 	response, err := h.service.SearchFlights(c.Request.Context(), req)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": fmt.Sprintf("Flight search failed: %v", err),
-		})
+		sendError(c, err)
 		return
 	}
 
@@ -74,11 +63,28 @@ func (h *FlightHandler) FilterFlightsHandler(c *gin.Context) {
 
 	response, err := h.service.FilterFlights(c.Request.Context(), req)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": fmt.Sprintf("Flight filter failed: %v", err),
-		})
+		sendError(c, err)
 		return
 	}
 
 	c.JSON(http.StatusOK, response)
+}
+
+func sendError(c *gin.Context, err error) {
+	var appErr *AppError
+
+	if errors.As(err, &appErr) {
+		c.JSON(appErr.Status, gin.H{
+			"error": appErr.Message,
+			"code":  appErr.Code,
+		})
+		return
+	}
+
+	// Default to 500 for unknown errors
+	c.JSON(http.StatusInternalServerError, gin.H{
+		"error":   "Internal Server Error",
+		"code":    ErrorCodeInternalFailure,
+		"details": err.Error(),
+	})
 }

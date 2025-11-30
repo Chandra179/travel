@@ -92,45 +92,42 @@ func (s *Service) generateCacheKey(req SearchRequest) string {
 
 func (r SearchRequest) Validate() error {
 	if len(r.Origin) != 3 {
-		return fmt.Errorf("origin must be a 3-letter IATA code")
+		return NewError(ErrorCodeValidation, "origin must be a 3-letter IATA code", 400)
 	}
 	if len(r.Destination) != 3 {
-		return fmt.Errorf("destination must be a 3-letter IATA code")
+		return NewError(ErrorCodeValidation, "destination must be a 3-letter IATA code", 400)
 	}
 	if strings.EqualFold(r.Origin, r.Destination) {
-		return fmt.Errorf("origin and destination cannot be the same")
+		return NewError(ErrorCodeSameOriginDestination, "origin and destination cannot be the same", 400)
 	}
 
 	if r.Passengers < 1 {
-		return fmt.Errorf("passengers must be at least 1")
+		return NewError(ErrorCodeInvalidPassengerCount, "passengers must be at least 1", 400)
 	}
 	if r.Passengers > 9 {
-		return fmt.Errorf("cannot book more than 9 passengers in one search")
+		return NewError(ErrorCodeInvalidPassengerCount, "cannot book more than 9 passengers in one search", 400)
 	}
 
-	const layout = "2006-01-02" // YYYY-MM-DD format
+	const layout = "2006-01-02"
 
 	depTime, err := time.Parse(layout, r.DepartureDate)
 	if err != nil {
-		return fmt.Errorf("invalid departure_date format, expected YYYY-MM-DD")
+		return NewError(ErrorCodeInvalidDateFormat, "invalid departure_date format, expected YYYY-MM-DD", 400)
 	}
 
-	// Ensure Departure isn't in the past
-	// truncate 'now' to 00:00:00 so flights 'today' represent valid logic
 	today := time.Now().Truncate(24 * time.Hour)
 	if depTime.Before(today) {
-		return fmt.Errorf("departure_date cannot be in the past")
+		return NewError(ErrorCodeDeparturePast, "departure_date cannot be in the past", 400)
 	}
 
 	if r.ReturnDate != "" {
 		retTime, err := time.Parse(layout, r.ReturnDate)
 		if err != nil {
-			return fmt.Errorf("invalid return_date format, expected YYYY-MM-DD")
+			return NewError(ErrorCodeInvalidDateFormat, "invalid return_date format, expected YYYY-MM-DD", 400)
 		}
 
-		// Return Date cannot be before Departure Date
 		if retTime.Before(depTime) {
-			return fmt.Errorf("return_date cannot be before departure_date")
+			return NewError(ErrorCodeReturnBeforeDeparture, "return_date cannot be before departure_date", 400)
 		}
 	}
 

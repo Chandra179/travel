@@ -1,13 +1,46 @@
 package flight
 
-import "time"
+import (
+	"fmt"
+	"time"
+)
 
 type ErrorCode string
 
 const (
 	ErrorCodeTimeout         ErrorCode = "TIMEOUT"
 	ErrorCodeInternalFailure ErrorCode = "INTERNAL_FAILURE"
+
+	ErrorCodeValidation            ErrorCode = "VALIDATION_ERROR"
+	ErrorCodeInvalidDateFormat     ErrorCode = "INVALID_DATE_FORMAT"
+	ErrorCodeDeparturePast         ErrorCode = "DEPARTURE_IN_PAST"
+	ErrorCodeReturnBeforeDeparture ErrorCode = "RETURN_BEFORE_DEPARTURE"
+	ErrorCodeInvalidPassengerCount ErrorCode = "INVALID_PASSENGER_COUNT"
+	ErrorCodeSameOriginDestination ErrorCode = "SAME_ORIGIN_DESTINATION"
+
+	ErrorCodeProviderFailed ErrorCode = "PROVIDER_FAILURE"
 )
+
+// AppError is a custom error struct that holds the code and the message
+type AppError struct {
+	Code    ErrorCode `json:"code"`
+	Message string    `json:"message"`
+	Status  int       `json:"-"` // HTTP Status code (not serialized to JSON)
+}
+
+// Error implements the standard error interface
+func (e *AppError) Error() string {
+	return fmt.Sprintf("[%s] %s", e.Code, e.Message)
+}
+
+// NewError is a helper to create AppErrors easily
+func NewError(code ErrorCode, message string, status int) *AppError {
+	return &AppError{
+		Code:    code,
+		Message: message,
+		Status:  status,
+	}
+}
 
 type PriceRange struct {
 	Low  uint64 `json:"low"`
