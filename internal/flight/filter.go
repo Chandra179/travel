@@ -25,7 +25,8 @@ func (s *Service) FilterFlights(ctx context.Context, req FilterRequest) (*Flight
 	metadata.SearchTimeMs = uint32(time.Since(startTime).Milliseconds())
 
 	return &FlightSearchResponse{
-		Metadata: metadata,
-		Flights:  flights,
+		SearchCriteria: req.SearchRequest,
+		Metadata:       metadata,
+		Flights:        flights,
 	}, nil
 }

@@ -21,7 +21,7 @@ const (
 	ErrorCodeProviderFailed ErrorCode = "PROVIDER_FAILURE"
 )
 
-// AppError is a custom error struct that holds the code and the message
+// Custom error struct that holds the code and the message
 type AppError struct {
 	Code    ErrorCode `json:"code"`
 	Message string    `json:"message"`
@@ -67,8 +67,9 @@ type SearchRequest struct {
 }
 
 type FlightSearchResponse struct {
-	Metadata Metadata `json:"metadata"`
-	Flights  []Flight `json:"flights"`
+	Metadata       Metadata      `json:"metadata"`
+	Flights        []Flight      `json:"flights"`
+	SearchCriteria SearchRequest `json:"search_criteria"`
 }
 
 type ProviderError struct {

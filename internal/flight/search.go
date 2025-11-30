@@ -16,7 +16,8 @@ func (s *Service) SearchFlights(ctx context.Context, req SearchRequest) (*Flight
 	}
 
 	return &FlightSearchResponse{
-		Metadata: metadata,
-		Flights:  flights,
+		SearchCriteria: req,
+		Metadata:       metadata,
+		Flights:        flights,
 	}, nil
 }

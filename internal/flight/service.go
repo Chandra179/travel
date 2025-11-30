@@ -47,10 +47,9 @@ func (s *Service) getOrFetchFlights(ctx context.Context, req SearchRequest) ([]F
 		s.logger.Error("cache_unmarshal_err", logger.Field{Key: "err", Value: err})
 	}
 
-	//  Fallback: Fetch from Provider
+	// Fallback: Fetch from Provider
 	response, err := s.flightClient.SearchFlights(ctx, req)
 	if response == nil || err != nil {
-		// Return empty slice on failure/empty to avoid nil pointer issues
 		return []Flight{}, Metadata{}, err
 	}
 
