@@ -20,6 +20,7 @@ git clone <repository-url>
 cd travel
 
 # automates checking for docker installation, copying .env.example, build docker image, start server, detailed on (dev-setup.sh)
+# For custom config modified the PORT at .env.example
 make dev-setup
 ```
 

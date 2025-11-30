@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"math/rand"
 	"net/http"
 	"os"
 	"strings"
@@ -140,5 +141,10 @@ func LionAirSearchHandler(w http.ResponseWriter, r *http.Request) {
 			AvailableFlights: filtered,
 		},
 	}
+
+	// Simulate random delay (100-200ms)
+	delay := 100 + rand.Intn(101) // 100 to 200ms
+	time.Sleep(time.Duration(delay) * time.Millisecond)
+
 	json.NewEncoder(w).Encode(response)
 }

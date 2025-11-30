@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"math/rand"
 	"net/http"
 	"os"
 	"strings"
@@ -111,6 +112,10 @@ func BatikSearchHandler(w http.ResponseWriter, r *http.Request) {
 
 		filtered = append(filtered, f)
 	}
+
+	// Simulate random delay (200-400ms)
+	delay := 200 + rand.Intn(201) // 200 to 400ms
+	time.Sleep(time.Duration(delay) * time.Millisecond)
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(BatikResponse{Results: filtered})

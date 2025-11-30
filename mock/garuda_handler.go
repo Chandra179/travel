@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"math/rand"
 	"net/http"
 	"os"
 	"strings"
@@ -124,6 +125,9 @@ func GarudaSearchHandler(w http.ResponseWriter, r *http.Request) {
 
 		filtered = append(filtered, f)
 	}
+
+	delay := 50 + rand.Intn(51) // 50 to 100ms
+	time.Sleep(time.Duration(delay) * time.Millisecond)
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(GarudaResponse{Status: "success", Flights: filtered})

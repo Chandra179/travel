@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"math/rand"
 	"net/http"
 	"os"
 	"strings"
@@ -84,6 +85,16 @@ func AirAsiaSearchHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		filteredFlights = append(filteredFlights, f)
+	}
+
+	// Simulate random delay (50-150ms)
+	delay := 50 + rand.Intn(101) // 50 to 150ms
+	time.Sleep(time.Duration(delay) * time.Millisecond)
+
+	// 90% success rate, 10% failure
+	if rand.Float64() < 0.1 {
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
