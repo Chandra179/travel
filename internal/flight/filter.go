@@ -178,10 +178,6 @@ func (s *Service) applySorting(flights []Flight, sort SortOptions) []Flight {
 	sorted := make([]Flight, len(flights))
 	copy(sorted, flights)
 
-	if sort.By == "best_value" {
-		sorted = s.calculateBestValueScores(sorted)
-	}
-
 	switch sort.By {
 	case "price":
 		s.sortByPrice(sorted, sort.Order)
@@ -191,22 +187,11 @@ func (s *Service) applySorting(flights []Flight, sort SortOptions) []Flight {
 		s.sortByDepartureTime(sorted, sort.Order)
 	case "arrival_time":
 		s.sortByArrivalTime(sorted, sort.Order)
-	case "best_value":
-		s.sortByBestValue(sorted, sort.Order)
 	default:
 		s.logger.Warn("Invalid sort criteria", logger.Field{Key: "sort_by", Value: sort.By})
 	}
 
 	return sorted
-}
-
-// TODO: scoring
-func (s *Service) calculateBestValueScores(flights []Flight) []Flight {
-	if len(flights) == 0 {
-		return flights
-	}
-
-	return flights
 }
 
 func (s *Service) sortByPrice(flights []Flight, order string) {
@@ -242,20 +227,6 @@ func (s *Service) sortByArrivalTime(flights []Flight, order string) {
 			return flights[i].Arrival.Timestamp > flights[j].Arrival.Timestamp
 		}
 		return flights[i].Arrival.Timestamp < flights[j].Arrival.Timestamp
-	})
-}
-
-func (s *Service) sortByBestValue(flights []Flight, order string) {
-	sort.Slice(flights, func(i, j int) bool {
-		// Scores should already be calculated
-		if flights[i].BestValueScore == nil || flights[j].BestValueScore == nil {
-			return false
-		}
-
-		if order == "desc" {
-			return *flights[i].BestValueScore > *flights[j].BestValueScore
-		}
-		return *flights[i].BestValueScore < *flights[j].BestValueScore
 	})
 }
 
