@@ -37,3 +37,5 @@ vendor/
 api/proto/gen/
 app.log
 mock-server.log
+.mock.pid
+.app.pid

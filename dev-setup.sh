@@ -128,6 +128,7 @@ fi
 print_info "Stopping any existing services..."
 pkill -f "go run ./cmd/travel/main.go" 2>/dev/null || true
 pkill -f "go run.*mock" 2>/dev/null || true
+pkill -f "mock/main.go" 2>/dev/null || true
 
 # Kill processes on the ports we're about to use
 print_info "Checking for processes on ports $APP_PORT and $MOCK_PORT..."
@@ -148,37 +149,119 @@ if ! docker ps | grep -q flight-redis; then
 fi
 print_info "Redis is running"
 
-# Start Mock Server
-print_info "Starting Mock Server on port $MOCK_PORT..."
-cd mock
-nohup go run . $MOCK_PORT > ../mock-server.log 2>&1 &
-cd ..
-sleep 2  # Wait for mock server to start
+# Get absolute paths
+PROJECT_ROOT=$(pwd)
+MOCK_LOG_FILE="$PROJECT_ROOT/mock-server.log"
 
-# Check if mock server is running
-if ! pgrep -f "go run.*mock" > /dev/null; then
-    print_error "Failed to start Mock Server"
-    print_info "Check mock-server.log for details"
+# Check if mock directory exists
+if [ ! -d "mock" ]; then
+    print_error "Mock directory not found!"
     exit 1
 fi
-print_info "Mock Server is running"
+
+# Check if mock/main.go exists
+if [ ! -f "mock/main.go" ]; then
+    print_error "mock/main.go not found!"
+    exit 1
+fi
+
+# Start Mock Server
+print_info "Starting Mock Server on port $MOCK_PORT..."
+print_info "Mock directory: $(pwd)/mock"
+print_info "Log file: $MOCK_LOG_FILE"
+
+# Clear old log file
+> "$MOCK_LOG_FILE"
+
+# Start mock server in background
+cd mock || exit 1
+go run . $MOCK_PORT >> "$MOCK_LOG_FILE" 2>&1 &
+MOCK_PID=$!
+echo $MOCK_PID > "$PROJECT_ROOT/.mock.pid"
+cd "$PROJECT_ROOT"
+
+sleep 4  # Wait for mock server to start
+
+# Check if PID file was created
+if [ ! -f ".mock.pid" ]; then
+    print_error "Failed to create mock server PID file"
+    print_info "Log contents:"
+    cat "$MOCK_LOG_FILE"
+    exit 1
+fi
+
+# Verify PID from file
+MOCK_PID=$(cat .mock.pid)
+print_info "Mock Server PID: $MOCK_PID"
+
+# Check if process is actually running (give it some grace period)
+sleep 1
+if ! ps -p $MOCK_PID > /dev/null 2>&1; then
+    print_error "Mock Server process (PID: $MOCK_PID) is not running"
+    print_info "Log contents:"
+    cat "$MOCK_LOG_FILE"
+    exit 1
+fi
+
+# Check if port is listening
+MAX_RETRIES=10
+RETRY_COUNT=0
+while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+    if lsof -i:$MOCK_PORT > /dev/null 2>&1; then
+        print_info "Mock Server is listening on port $MOCK_PORT"
+        break
+    fi
+    RETRY_COUNT=$((RETRY_COUNT + 1))
+    if [ $RETRY_COUNT -eq $MAX_RETRIES ]; then
+        print_error "Mock Server not listening on port $MOCK_PORT after $MAX_RETRIES attempts"
+        print_info "Process status:"
+        ps -p $MOCK_PID || echo "Process not found"
+        print_info "Log contents:"
+        cat "$MOCK_LOG_FILE"
+        exit 1
+    fi
+    sleep 1
+done
+
+print_info "Mock Server is running (PID: $MOCK_PID)"
 
 # Start Main Application
 print_info "Starting Main Application on port $APP_PORT..."
-nohup go run ./cmd/travel/main.go > app.log 2>&1 &
-sleep 2  # Wait for app to start
+> app.log  # Clear old log
+nohup go run ./cmd/travel/main.go >> app.log 2>&1 &
+APP_PID=$!
+echo $APP_PID > .app.pid
+sleep 4  # Wait for app to start
 
 # Check if app is running
-if ! pgrep -f "go run ./cmd/travel/main.go" > /dev/null; then
-    print_error "Failed to start Main Application"
-    print_info "Check app.log for details"
+if ! ps -p $APP_PID > /dev/null 2>&1; then
+    print_error "Main Application process (PID: $APP_PID) is not running"
+    print_info "Log contents:"
+    tail -30 app.log
     exit 1
 fi
-print_info "Main Application is running"
 
-# Final status check
-print_info "Waiting for services to be fully ready..."
-sleep 3
+# Check if port is listening
+MAX_RETRIES=10
+RETRY_COUNT=0
+while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+    if lsof -i:$APP_PORT > /dev/null 2>&1; then
+        print_info "Main Application is listening on port $APP_PORT"
+        break
+    fi
+    RETRY_COUNT=$((RETRY_COUNT + 1))
+    if [ $RETRY_COUNT -eq $MAX_RETRIES ]; then
+        print_error "Main Application not listening on port $APP_PORT after $MAX_RETRIES attempts"
+        print_info "Process status:"
+        ps -p $APP_PID || echo "Process not found"
+        print_info "Log contents:"
+        tail -30 app.log
+        exit 1
+    fi
+    sleep 1
+done
+
+print_info "Main Application is running (PID: $APP_PID)"
 
 echo ""
 print_info "=================================="
@@ -187,8 +270,8 @@ print_info "=================================="
 echo ""
 print_info "Services:"
 print_info "  - Redis:            localhost:6379"
-print_info "  - Mock Server:      http://localhost:$MOCK_PORT"
-print_info "  - Main Application: http://localhost:$APP_PORT"
+print_info "  - Mock Server:      http://localhost:$MOCK_PORT (PID: $MOCK_PID)"
+print_info "  - Main Application: http://localhost:$APP_PORT (PID: $APP_PID)"
 print_info "  - Swagger UI:       http://localhost:$APP_PORT/swagger/index.html"
 print_info "  - API Docs:         http://localhost:$APP_PORT/docs"
 echo ""
