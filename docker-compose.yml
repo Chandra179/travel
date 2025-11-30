@@ -25,6 +25,8 @@ services:
       - "${MOCK_PORT:-8081}:8081"
     networks:
       - flight-network
+    volumes:
+      - ./mock/files:/app/mock/files:ro
     environment:
       - PORT=8081
     healthcheck:

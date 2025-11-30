@@ -81,7 +81,7 @@ sleep 5
 # Check if all services are running
 print_info "Checking service health..."
 
-MAX_RETRIES=30
+MAX_RETRIES=7
 RETRY_COUNT=0
 
 while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do

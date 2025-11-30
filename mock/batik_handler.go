@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 )
@@ -36,42 +37,6 @@ type BatikFare struct {
 	Class        string `json:"class"` // "Y", "C", etc.
 }
 
-var batikFlights = []BatikFlight{
-	{
-		FlightNumber: "ID6514", AirlineName: "Batik Air", AirlineIATA: "ID",
-		Origin: "CGK", Destination: "DPS",
-		DepartureDateTime: "2025-12-15T07:15:00+0700", ArrivalDateTime: "2025-12-15T10:00:00+0800",
-		TravelTime: "1h 45m", NumberOfStops: 0,
-		Fare:           BatikFare{TotalPrice: 1100000, CurrencyCode: "IDR", Class: "Y"},
-		SeatsAvailable: 32, AircraftModel: "Airbus A320", BaggageInfo: "7kg cabin, 20kg checked",
-	},
-	{
-		FlightNumber: "ID6520", AirlineName: "Batik Air", AirlineIATA: "ID",
-		Origin: "CGK", Destination: "DPS",
-		DepartureDateTime: "2025-12-15T13:30:00+0700", ArrivalDateTime: "2025-12-15T16:20:00+0800",
-		TravelTime: "1h 50m", NumberOfStops: 0,
-		Fare:           BatikFare{TotalPrice: 1180000, CurrencyCode: "IDR", Class: "Y"},
-		SeatsAvailable: 18, AircraftModel: "Boeing 737-800", BaggageInfo: "7kg cabin, 20kg checked",
-	},
-	{
-		FlightNumber: "ID7042", AirlineName: "Batik Air", AirlineIATA: "ID",
-		Origin: "CGK", Destination: "DPS",
-		DepartureDateTime: "2025-12-15T18:45:00+0700", ArrivalDateTime: "2025-12-15T23:50:00+0800",
-		TravelTime: "3h 5m", NumberOfStops: 1,
-		Fare:           BatikFare{TotalPrice: 950000, CurrencyCode: "IDR", Class: "Y"},
-		SeatsAvailable: 41, AircraftModel: "Airbus A320", BaggageInfo: "7kg cabin, 20kg checked",
-	},
-	// Adding a Business Class option to test filtering
-	{
-		FlightNumber: "ID9999", AirlineName: "Batik Air", AirlineIATA: "ID",
-		Origin: "CGK", Destination: "DPS",
-		DepartureDateTime: "2025-12-15T09:00:00+0700", ArrivalDateTime: "2025-12-15T11:45:00+0800",
-		TravelTime: "1h 45m", NumberOfStops: 0,
-		Fare:           BatikFare{TotalPrice: 2500000, CurrencyCode: "IDR", Class: "C"},
-		SeatsAvailable: 8, AircraftModel: "Boeing 737-800", BaggageInfo: "10kg cabin, 30kg checked",
-	},
-}
-
 func BatikSearchHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -79,51 +44,68 @@ func BatikSearchHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req SearchRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid JSON", http.StatusBadRequest)
+	json.NewDecoder(r.Body).Decode(&req)
+
+	// Read JSON file
+	data, err := os.ReadFile("mock/files/batik_air_search_response.json")
+	if err != nil {
+		http.Error(w, "Failed to read flight data: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	if req.Origin == "" || req.Destination == "" || req.DepartureDate == "" ||
-		req.Passengers == 0 || req.CabinClass == "" {
-		http.Error(w, "All fields are mandatory", http.StatusBadRequest)
+	// Unmarshal to struct
+	var fileResponse struct {
+		Code    int           `json:"code"`
+		Message string        `json:"message"`
+		Results []BatikFlight `json:"results"`
+	}
+	if err := json.Unmarshal(data, &fileResponse); err != nil {
+		http.Error(w, "Failed to parse flight data: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
+	// Apply filtering
 	filtered := make([]BatikFlight, 0)
-
 	const batikLayout = "2006-01-02T15:04:05-0700"
 
-	for _, f := range batikFlights {
-		if !strings.EqualFold(f.Origin, req.Origin) || !strings.EqualFold(f.Destination, req.Destination) {
+	for _, f := range fileResponse.Results {
+		if req.Origin != "" && !strings.EqualFold(f.Origin, req.Origin) {
+			continue
+		}
+
+		if req.Destination != "" && !strings.EqualFold(f.Destination, req.Destination) {
 			continue
 		}
 
 		// Request sends "Economy", Data has "Y". Request sends "Business", Data has "C".
-		reqClass := strings.ToLower(req.CabinClass)
-		dataClass := f.Fare.Class
+		if req.CabinClass != "" {
+			reqClass := strings.ToLower(req.CabinClass)
+			dataClass := f.Fare.Class
 
-		isMatch := false
-		if reqClass == "economy" && dataClass == "Y" {
-			isMatch = true
-		}
-		if reqClass == "business" && (dataClass == "C" || dataClass == "J") {
-			isMatch = true
-		}
+			isMatch := false
+			if reqClass == "economy" && dataClass == "Y" {
+				isMatch = true
+			}
+			if reqClass == "business" && (dataClass == "C" || dataClass == "J") {
+				isMatch = true
+			}
 
-		if !isMatch {
-			continue
-		}
-
-		if f.SeatsAvailable < req.Passengers {
-			continue
-		}
-
-		t, err := time.Parse(batikLayout, f.DepartureDateTime)
-		if err == nil {
-			dbDate := t.Format("2006-01-02")
-			if dbDate != req.DepartureDate {
+			if !isMatch {
 				continue
+			}
+		}
+
+		if req.Passengers > 0 && f.SeatsAvailable < req.Passengers {
+			continue
+		}
+
+		if req.DepartureDate != "" {
+			t, err := time.Parse(batikLayout, f.DepartureDateTime)
+			if err == nil {
+				dbDate := t.Format("2006-01-02")
+				if dbDate != req.DepartureDate {
+					continue
+				}
 			}
 		}
 
