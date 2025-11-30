@@ -31,10 +31,12 @@ func NewService(flightClient FlightClient, cache cache.Cache, ttlMinutes int, lo
 
 // generateCacheKey creates a deterministic key from search parameters
 func (s *Service) generateCacheKey(req SearchRequest) string {
-	key := fmt.Sprintf("flight:%s:%s:%s",
+	key := fmt.Sprintf("flight:%s:%s:%s:%d:%s",
 		req.Origin,
 		req.Destination,
 		req.DepartureDate,
+		req.Passengers,
+		req.CabinClass,
 	)
 
 	hash := sha256.Sum256([]byte(key))
@@ -75,14 +77,6 @@ type SearchRequest struct {
 type FlightSearchResponse struct {
 	Metadata Metadata `json:"metadata"`
 	Flights  []Flight `json:"flights"`
-}
-
-type SearchCriteria struct {
-	Origin        string `json:"origin"`
-	Destination   string `json:"destination"`
-	DepartureDate string `json:"departure_date"`
-	Passengers    uint32 `json:"passengers"`
-	CabinClass    string `json:"cabin_class"`
 }
 
 type ProviderError struct {
