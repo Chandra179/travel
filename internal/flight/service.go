@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 	"travel/pkg/cache"
 	"travel/pkg/logger"
@@ -87,4 +88,51 @@ func (s *Service) generateCacheKey(req SearchRequest) string {
 	)
 	hash := sha256.Sum256([]byte(key))
 	return fmt.Sprintf("flight:search:%x", hash[:16])
+}
+
+func (r SearchRequest) Validate() error {
+	if len(r.Origin) != 3 {
+		return fmt.Errorf("origin must be a 3-letter IATA code")
+	}
+	if len(r.Destination) != 3 {
+		return fmt.Errorf("destination must be a 3-letter IATA code")
+	}
+	if strings.EqualFold(r.Origin, r.Destination) {
+		return fmt.Errorf("origin and destination cannot be the same")
+	}
+
+	if r.Passengers < 1 {
+		return fmt.Errorf("passengers must be at least 1")
+	}
+	if r.Passengers > 9 {
+		return fmt.Errorf("cannot book more than 9 passengers in one search")
+	}
+
+	const layout = "2006-01-02" // YYYY-MM-DD format
+
+	depTime, err := time.Parse(layout, r.DepartureDate)
+	if err != nil {
+		return fmt.Errorf("invalid departure_date format, expected YYYY-MM-DD")
+	}
+
+	// Ensure Departure isn't in the past
+	// truncate 'now' to 00:00:00 so flights 'today' represent valid logic
+	today := time.Now().Truncate(24 * time.Hour)
+	if depTime.Before(today) {
+		return fmt.Errorf("departure_date cannot be in the past")
+	}
+
+	if r.ReturnDate != "" {
+		retTime, err := time.Parse(layout, r.ReturnDate)
+		if err != nil {
+			return fmt.Errorf("invalid return_date format, expected YYYY-MM-DD")
+		}
+
+		// Return Date cannot be before Departure Date
+		if retTime.Before(depTime) {
+			return fmt.Errorf("return_date cannot be before departure_date")
+		}
+	}
+
+	return nil
 }

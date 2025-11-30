@@ -2,11 +2,15 @@ package flight
 
 import (
 	"context"
+	"fmt"
 	"time"
 )
 
 func (s *Service) FilterFlights(ctx context.Context, req FilterRequest) (*FlightSearchResponse, error) {
 	startTime := time.Now()
+	if err := req.SearchRequest.Validate(); err != nil {
+		return nil, fmt.Errorf("validation error: %w", err)
+	}
 	flights, metadata, err := s.getOrFetchFlights(ctx, req.SearchRequest)
 	if err != nil {
 		return nil, err

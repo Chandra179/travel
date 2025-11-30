@@ -90,14 +90,14 @@ NormalizedScore = 1.0 - (Value - Min) / (Max - Min)
 - Result: the best value (cheapest / fastest) → `1.0`; worst → `0.0`.
 
 **Weights (example):**
-- Price: `0.45`  
-- Duration: `0.35`  
-- Stops: `0.20`
+- Price: `0.70`  
+- Duration: `0.15`  
+- Stops: `0.15`
 
 **Final score formula:**
 
 ```text
-FinalScore = (0.45 * NormPrice) + (0.35 * NormDuration) + (0.20 * NormStops)
+FinalScore = (0.70 * NormPrice) + (0.15 * NormDuration) + (0.15 * NormStops)
 ```
 
 **Ranking:** Sort results by `FinalScore` **descending**.
