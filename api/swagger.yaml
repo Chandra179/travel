@@ -1,0 +1,157 @@
+basePath: /
+definitions:
+  flight.ArrivalTime:
+    properties:
+      from:
+        type: string
+      to:
+        type: string
+    type: object
+  flight.DepartureTime:
+    properties:
+      from:
+        type: string
+      to:
+        type: string
+    type: object
+  flight.FilterOptions:
+    properties:
+      airlines:
+        items:
+          type: string
+        type: array
+      arrival_time:
+        $ref: '#/definitions/flight.ArrivalTime'
+      departure_time:
+        $ref: '#/definitions/flight.DepartureTime'
+      max_duration:
+        type: integer
+      max_stops:
+        type: integer
+      price_range:
+        $ref: '#/definitions/flight.PriceRange'
+    type: object
+  flight.FilterRequest:
+    properties:
+      cabin_class:
+        type: string
+      departure_date:
+        type: string
+      destination:
+        type: string
+      filters:
+        $ref: '#/definitions/flight.FilterOptions'
+      origin:
+        type: string
+      passengers:
+        type: integer
+      return_date:
+        type: string
+      sort:
+        $ref: '#/definitions/flight.SortOptions'
+    type: object
+  flight.PriceRange:
+    properties:
+      high:
+        type: integer
+      low:
+        type: integer
+    type: object
+  flight.SearchRequest:
+    properties:
+      cabin_class:
+        type: string
+      departure_date:
+        type: string
+      destination:
+        type: string
+      origin:
+        type: string
+      passengers:
+        type: integer
+      return_date:
+        type: string
+    type: object
+  flight.SortOptions:
+    properties:
+      by:
+        description: price, duration, departure_time, arrival_time, best_value
+        type: string
+      order:
+        description: asc, desc
+        type: string
+    type: object
+host: localhost:8080
+info:
+  contact: {}
+  description: API service for searching and filtering flights.
+  title: Travel Flight API
+  version: "1.0"
+paths:
+  /v1/flights/filter:
+    post:
+      consumes:
+      - application/json
+      description: Apply filters like price range, airline, or transit
+      parameters:
+      - description: Filter Criteria
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/flight.FilterRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Filter existing flight results
+      tags:
+      - flights
+  /v1/flights/search:
+    post:
+      consumes:
+      - application/json
+      description: Search flights based on origin, destination, and dates
+      parameters:
+      - description: Flight Search Criteria
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/flight.SearchRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Replace this with your actual Response Struct
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Search for flights
+      tags:
+      - flights
+schemes:
+- http
+swagger: "2.0"

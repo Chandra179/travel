@@ -35,3 +35,5 @@ vendor/
 /api/proto/gen/
 ./api/proto/gen/
 api/proto/gen/
+app.log
+mock-server.log
