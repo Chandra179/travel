@@ -50,7 +50,7 @@ services:
       - APP_ENV=${APP_ENV:-development}
       - REDIS_HOST=redis
       - REDIS_PORT=6379
-      - CACHE_TTL_SECONDS=${CACHE_TTL_SECONDS:-3}
+      - CACHE_TTL_SECONDS=${CACHE_TTL_SECONDS:-30}
       - AIRASIA_CLIENT_BASE_URL=http://mock-server:8081
       - BATIKAIR_CLIENT_BASE_URL=http://mock-server:8081
       - GARUDA_CLIENT_BASE_URL=http://mock-server:8081
