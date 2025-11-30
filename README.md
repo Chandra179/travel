@@ -71,7 +71,8 @@ and run go run .
 dont run using dir relative path like this: go run mock/main.go, it will not work
 
 ## Running
-in root direcotry, do
+in root direcotry, do this in order:
+make up
 make run 
 
 swagger: http://localhost:8080/swagger/index.html
