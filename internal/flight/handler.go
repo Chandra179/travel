@@ -1,9 +1,11 @@
 package flight
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -87,4 +89,46 @@ func sendError(c *gin.Context, err error) {
 		"code":    ErrorCodeInternalFailure,
 		"details": err.Error(),
 	})
+}
+
+func (s *Service) FilterFlights(ctx context.Context, req FilterRequest) (*FlightSearchResponse, error) {
+	startTime := time.Now()
+	if err := req.SearchRequest.Validate(); err != nil {
+		return nil, fmt.Errorf("validation error: %w", err)
+	}
+	flights, metadata, err := s.getOrFetchFlights(ctx, req.SearchRequest)
+	if err != nil {
+		return nil, err
+	}
+	if req.Filters != nil {
+		flights = s.applyFilters(flights, *req.Filters)
+	}
+	if req.Sort != nil {
+		flights = s.applySorting(flights, *req.Sort)
+	}
+	metadata.TotalResults = uint32(len(flights))
+	metadata.SearchTimeMs = uint32(time.Since(startTime).Milliseconds())
+
+	return &FlightSearchResponse{
+		SearchCriteria: req.SearchRequest,
+		Metadata:       metadata,
+		Flights:        flights,
+	}, nil
+}
+
+func (s *Service) SearchFlights(ctx context.Context, req SearchRequest) (*FlightSearchResponse, error) {
+	if err := req.Validate(); err != nil {
+		return nil, fmt.Errorf("validation error: %w", err)
+	}
+
+	flights, metadata, err := s.getOrFetchFlights(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+
+	return &FlightSearchResponse{
+		SearchCriteria: req,
+		Metadata:       metadata,
+		Flights:        flights,
+	}, nil
 }
