@@ -116,16 +116,16 @@ func (f *FlightManager) SearchFlights(ctx context.Context, req flight.SearchRequ
 	providersFailed := uint32(0)
 	providersQueried := uint32(4)
 
-	for result := range resultChan {
-		if result.err == nil {
-			allFlights = append(allFlights, result.flights...)
-			providersSucceeded++
-		} else {
-			providersFailed++
-			providerErrors = append(providerErrors, flight.ProviderError{
-				Provider: result.provider,
-				Code:     result.errorCode,
-			})
+	for i := 0; i < 4; i++ {
+		select {
+		case result := <-resultChan:
+			if result.err == nil {
+				allFlights = append(allFlights, result.flights...)
+				providersSucceeded++
+			}
+		case <-ctx.Done():
+			// The overall time limit (10s) was hit before we finished the loop
+			return nil, ctx.Err()
 		}
 	}
 
